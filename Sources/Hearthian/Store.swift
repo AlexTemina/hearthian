@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// Reads ~/Library/Application Support/Hearthian/hoy.json and keeps it current: the vault's renderer
+/// Reads ~/Library/Application Support/Hearthian/today.json and keeps it current: the vault's renderer
 /// rewrites that file on every Daily refresh, and the app picks it up within two seconds.
 enum Paths {
     static let folder = FileManager.default.homeDirectoryForCurrentUser
