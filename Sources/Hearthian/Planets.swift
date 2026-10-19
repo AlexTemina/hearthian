@@ -50,6 +50,7 @@ final class Journey: ObservableObject {
     @Published private var active: [Int: String] = [:]
     @Published private var frogOverride: String?
     @Published private(set) var forcedDescents: [String] = []
+    @Published private var started: Set<String> = []
     private var date = ""
 
     func sync(_ day: Day) {
@@ -62,13 +63,14 @@ final class Journey: ObservableObject {
         }
         frogOverride = saved["frog"] as? String
         forcedDescents = saved["forced"] as? [String] ?? []
+        started = Set(saved["started"] as? [String] ?? [])
     }
 
     private func save() {
         guard !date.isEmpty else { return }
         var record: [String: Any] = ["current": current.rawValue,
                                      "active": Dictionary(uniqueKeysWithValues: active.map { ("\($0.key)", $0.value) }),
-                                     "forced": forcedDescents]
+                                     "forced": forcedDescents, "started": Array(started)]
         if let frogOverride { record["frog"] = frogOverride }
         UserDefaults.standard.set(record, forKey: "journey-\(date)")
     }
@@ -118,7 +120,23 @@ final class Journey: ObservableObject {
     func activate(_ item: Item, in day: Day?) {
         guard let day, let planet = planet(of: item, day), planet != .timberHearth else { return }
         active[planet.rawValue] = item.md
+        started.insert(item.md)
         save()
+    }
+
+    func isStarted(_ item: Item) -> Bool { started.contains(item.md) }
+
+    /// The metro line: stations already passed (done), then where you are (the active one and
+    /// whatever you already started), then what is still ahead, in its priority order.
+    func railOrder(_ planet: Planet, _ day: Day, hasAgent: (Item) -> Bool) -> [Item] {
+        let list = items(planet, day)
+        let active = activeItem(planet, day)
+        let done = list.filter { !$0.isOpen }
+        let open = list.filter(\.isOpen)
+        let current = open.filter { $0.md == active?.md }
+        let underway = open.filter { $0.md != active?.md && (started.contains($0.md) || hasAgent($0)) }
+        let ahead = open.filter { item in !current.contains(item) && !underway.contains(item) }
+        return done + current + underway + ahead
     }
 
     /// The frog is done: the chosen Brittle Hollow item becomes the frog.

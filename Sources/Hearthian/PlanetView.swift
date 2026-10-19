@@ -65,7 +65,12 @@ struct PlanetView: View {
             } else {
                 Label(L.layerDone.text, systemImage: "checkmark.seal.fill").foregroundStyle(.green).font(.headline)
             }
-            if !compact { rail(list, active: journey.activeItem(planet, day)) }
+            if !compact {
+                rail(journey.railOrder(planet, day) { item in
+                    guard let state = monitor.status(for: item)?.state else { return false }
+                    return state == .thinking || state == .needsYou || state == .stuck
+                }, active: journey.activeItem(planet, day))
+            }
         }
     }
 
@@ -120,13 +125,23 @@ struct PlanetView: View {
                             .frame(width: 12, height: 12)
                             .padding(.top, 13)
                         if index < list.count - 1 {
-                            Rectangle().fill(item.isOpen ? Color.secondary.opacity(0.2) : Color.green.opacity(0.6))
-                                .frame(width: 2).frame(maxHeight: .infinity)
+                            // The segment below a stop is green while the next stop is also passed.
+                            let passed = !item.isOpen && !list[index + 1].isOpen
+                            let leadsToActive = !item.isOpen && list[index + 1].md == active?.md
+                            Rectangle()
+                                .fill(passed ? Color.green.opacity(0.7) : leadsToActive ? planet.tone.opacity(0.7) : Color.secondary.opacity(0.2))
+                                .frame(width: 3).frame(maxHeight: .infinity)
                         }
                     }
                     .frame(width: 22)
                     VStack(alignment: .leading, spacing: 0) {
-                        if let badge = kindBadge(item) { badge.padding(.leading, 10).padding(.top, 4) }
+                        HStack(spacing: 6) {
+                            if let badge = kindBadge(item) { badge }
+                            if item.isOpen && item.md != active?.md && journey.isStarted(item) {
+                                Label(L.underway.text, systemImage: "play.circle.fill").font(.caption2.weight(.bold)).foregroundStyle(planet.tone)
+                            }
+                        }
+                        .padding(.leading, 10).padding(.top, 4)
                         ItemRow(item: item, showStatus: false)
                     }
                     if item.isOpen && item.md != active?.md {

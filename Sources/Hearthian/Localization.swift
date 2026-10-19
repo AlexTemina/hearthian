@@ -18,7 +18,7 @@ enum L: String {
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
     case slackWindows, windowsEnabled, windowLength, minutesUnit, weekdayTimes, timesHelp, openSlackAtStart, quitSlackAtEnd, setSlackStatus, slackToken, slackTokenHelp, statusTexts, windowStarts, windowStartsBody, windowEnds, windowEndsBody, lastWindowBody, extendWindow, skipWindow, startWindowNow, endWindowNow, windowOpenUntil, nextWindow, general, monday, tuesday, wednesday, thursday, friday, saturday, sunday, saved
-    case roleFrog, roleWhileFrog, roleLight, descendTo, ascendTo, descendLocked, descendAnyway, whyDescend, waitingAbove, frogDone, promoteNext, activeNow, nextUp, everything, makeActive, kindDecision, kindAuto, kindLight, showAllPlanets, nothingHere, layerDone, backToFrog
+    case underway, roleFrog, roleWhileFrog, roleLight, descendTo, ascendTo, descendLocked, descendAnyway, whyDescend, waitingAbove, frogDone, promoteNext, activeNow, nextUp, everything, makeActive, kindDecision, kindAuto, kindLight, showAllPlanets, nothingHere, layerDone, backToFrog
     case reload, updatedAt, agents, agentThinking, agentNeedsYou, agentStuck, agentIdle
     case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
@@ -57,6 +57,7 @@ enum L: String {
         .next: ("Next", "Ahora"),
         .map: ("Map", "Mapa"),
         .reload: ("Reload", "Recargar"),
+        .underway: ("started", "empezada"),
         .roleFrog: ("The frog: the one thing that makes the day", "La rana: lo que hace bueno el día"),
         .roleWhileFrog: ("Where you go while the frog's agent works", "A donde vas mientras trabaja el agente de la rana"),
         .roleLight: ("Small things with no agent, for while two agents work", "Cosas pequeñas sin agente, mientras trabajan dos"),
