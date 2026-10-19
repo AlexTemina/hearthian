@@ -54,6 +54,9 @@ final class Store: ObservableObject {
     }
 
     var menuTitle: String {
+        if let end = SlackWindows.shared.windowEndsAt, end > .now {
+            return "🪟 \(max(1, Int(end.timeIntervalSinceNow / 60)))m"
+        }
         guard let day else { return "☀️" }
         return "☀️ \(day.progress.done)/\(day.progress.total)"
     }

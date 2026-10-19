@@ -17,6 +17,7 @@ enum L: String {
     case messageAgent, newAgent, send, cancel, openLink, copyLine
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
+    case slackWindows, windowsEnabled, windowLength, minutesUnit, weekdayTimes, timesHelp, openSlackAtStart, quitSlackAtEnd, setSlackStatus, slackToken, slackTokenHelp, statusTexts, windowStarts, windowStartsBody, windowEnds, windowEndsBody, lastWindowBody, extendWindow, skipWindow, startWindowNow, endWindowNow, windowOpenUntil, nextWindow, general, monday, tuesday, wednesday, thursday, friday, saturday, sunday, saved
     case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
     private static let table: [L: (en: String, es: String)] = [
@@ -53,6 +54,34 @@ enum L: String {
         .updated: ("Updated", "Actualizado"),
         .next: ("Next", "Ahora"),
         .map: ("Map", "Mapa"),
+        .slackWindows: ("Slack windows", "Ventanas de Slack"),
+        .windowsEnabled: ("Open Slack only in windows", "Abrir Slack solo en ventanas"),
+        .windowLength: ("Window length", "Duración de cada ventana"),
+        .minutesUnit: ("min", "min"),
+        .weekdayTimes: ("Times", "Horas"),
+        .timesHelp: ("Comma separated, 24h: 09:20, 12:40, 16:30. The second field is when the day ends.", "Separadas por comas, 24 h: 09:20, 12:40, 16:30. El segundo campo es cuándo acaba el día."),
+        .openSlackAtStart: ("Open Slack when a window starts", "Abrir Slack al empezar la ventana"),
+        .quitSlackAtEnd: ("Quit Slack when it ends", "Cerrar Slack al acabar"),
+        .setSlackStatus: ("Set my Slack status", "Poner mi estado de Slack"),
+        .slackToken: ("Slack user token", "Token de usuario de Slack"),
+        .slackTokenHelp: ("xoxp-…, with users.profile:write. Kept in the Keychain. Without it, windows still notify and open Slack.", "xoxp-…, con users.profile:write. Se guarda en el Llavero. Sin él, las ventanas siguen avisando y abriendo Slack."),
+        .statusTexts: ("Status texts", "Textos del estado"),
+        .windowStarts: ("Slack window", "Ventana de Slack"),
+        .windowStartsBody: ("{minutes} minutes. Read, answer, close. What does not fit goes to Linear.", "{minutes} minutos. Lee, contesta, cierra. Lo que no cabe, a Linear."),
+        .windowEnds: ("Window over", "Se acabó la ventana"),
+        .windowEndsBody: ("Back to deep work. Next window at {next}.", "Vuelta al trabajo profundo. Siguiente a las {next}."),
+        .lastWindowBody: ("That was the last one today.", "Era la última del día."),
+        .extendWindow: ("+10 min", "+10 min"),
+        .skipWindow: ("Close now", "Cerrar ya"),
+        .startWindowNow: ("Open a window now", "Abrir una ventana ahora"),
+        .endWindowNow: ("Close the window", "Cerrar la ventana"),
+        .windowOpenUntil: ("Slack open until", "Slack abierto hasta las"),
+        .nextWindow: ("Next Slack window", "Siguiente ventana de Slack"),
+        .general: ("General", "General"),
+        .monday: ("Monday", "Lunes"), .tuesday: ("Tuesday", "Martes"), .wednesday: ("Wednesday", "Miércoles"),
+        .thursday: ("Thursday", "Jueves"), .friday: ("Friday", "Viernes"), .saturday: ("Saturday", "Sábado"),
+        .sunday: ("Sunday", "Domingo"),
+        .saved: ("Saved", "Guardado"),
         .matrix: ("Eisenhower matrix", "Matriz de Eisenhower"),
         .timeline: ("Timeline", "Timeline"),
         .launchAtLogin: ("Open at login", "Abrir al iniciar sesión"),

@@ -20,7 +20,7 @@ struct HearthianApp: App {
                 .environmentObject(settings)
                 .onAppear { Actions.store = store }
         } label: {
-            Text(store.menuTitle)
+            MenuLabel(store: store)
         }
         .menuBarExtraStyle(.window)
 
@@ -33,4 +33,20 @@ struct HearthianApp: App {
 /// Closing the window keeps Hearthian alive in the menu bar; the Dock icon brings the window back.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor in SlackWindows.shared.start() }
+    }
+}
+
+/// The menu bar title: the day's progress, or the minutes left in a Slack window.
+struct MenuLabel: View {
+    @ObservedObject var store: Store
+    @ObservedObject private var windows = SlackWindows.shared
+    @State private var tick = Date.now
+    private let clock = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Text(store.menuTitle).id(tick).onReceive(clock) { tick = $0 }
+    }
 }

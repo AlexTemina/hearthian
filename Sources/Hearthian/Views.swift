@@ -348,6 +348,30 @@ struct ProgressRing: View {
 
 // MARK: - Menu bar
 
+struct WindowBar: View {
+    @EnvironmentObject private var settings: AppSettings
+    @ObservedObject private var windows = SlackWindows.shared
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: windows.isOpen ? "bubble.left.and.bubble.right.fill" : "moon.zzz.fill")
+                .foregroundStyle(windows.isOpen ? Color.accentColor : .secondary)
+            if windows.isOpen, let end = windows.windowEndsAt {
+                Text("\(L.windowOpenUntil.text) \(SlackWindows.hm(end))").font(.callout)
+                Spacer()
+                Button(L.extendWindow.text) { windows.extend() }
+                Button(L.endWindowNow.text) { windows.closeWindow() }
+            } else {
+                Text(windows.next.map { "\(L.nextWindow.text): \($0)" } ?? L.lastWindowBody.text).font(.callout)
+                Spacer()
+                Button(L.startWindowNow.text) { windows.openWindow() }
+            }
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 16).padding(.vertical, 9)
+    }
+}
+
 struct MenuContent: View {
     @ObservedObject var store: Store
     @EnvironmentObject private var settings: AppSettings
@@ -357,6 +381,8 @@ struct MenuContent: View {
         VStack(spacing: 0) {
             DayView(store: store, compact: true, inMenu: true)
                 .frame(width: 460, height: 640)
+            Divider()
+            WindowBar()
             Divider()
             HStack(spacing: 14) {
                 Button { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) } label: {
@@ -378,22 +404,113 @@ struct MenuContent: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        TabView {
+            GeneralSettings().tabItem { Label(L.general.text, systemImage: "gearshape") }
+            SlackSettings().tabItem { Label(L.slackWindows.text, systemImage: "bubble.left.and.bubble.right") }
+        }
+        .frame(width: 580)
+        .environmentObject(settings)
+    }
+}
+
+struct GeneralSettings: View {
+    @EnvironmentObject private var settings: AppSettings
     @State private var atLogin = LoginItem.isOn
 
     var body: some View {
         Form {
-            Toggle(L.launchAtLogin.text, isOn: $atLogin)
-                .onChange(of: atLogin) { _, on in LoginItem.set(on); atLogin = LoginItem.isOn }
-                .help(L.openAtLoginHelp.text)
             Picker(L.language.text, selection: $settings.languageRaw) {
                 Text(L.systemLanguage.text).tag(Language.system.rawValue)
                 Text(L.english.text).tag(Language.en.rawValue)
                 Text(L.spanish.text).tag(Language.es.rawValue)
             }
+            Toggle(L.launchAtLogin.text, isOn: $atLogin)
+                .onChange(of: atLogin) { _, on in LoginItem.set(on); atLogin = LoginItem.isOn }
+                .help(L.openAtLoginHelp.text)
             LabeledContent("today.json", value: Store.dayFile.path).font(.caption)
             LabeledContent("config.json", value: Config.file.path).font(.caption)
         }
-        .padding(20)
-        .frame(width: 520)
+        .formStyle(.grouped)
+        .padding(8)
+    }
+}
+
+struct SlackSettings: View {
+    @EnvironmentObject private var settings: AppSettings
+    @ObservedObject private var windows = SlackWindows.shared
+    @State private var token = Keychain.get("slack-user-token") ?? ""
+    @State private var tokenSaved = false
+
+    private var days: [(Int, L)] {
+        [(1, .monday), (2, .tuesday), (3, .wednesday), (4, .thursday), (5, .friday), (6, .saturday), (7, .sunday)]
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(L.windowsEnabled.text, isOn: $windows.schedule.enabled)
+                Stepper(value: $windows.schedule.minutes, in: 5...60, step: 5) {
+                    LabeledContent(L.windowLength.text, value: "\(windows.schedule.minutes) \(L.minutesUnit.text)")
+                }
+            }
+            Section {
+                ForEach(days, id: \.0) { day, name in
+                    HStack {
+                        Text(name.text).frame(width: 90, alignment: .leading)
+                        TextField("09:20, 12:40, 16:30", text: times(day))
+                            .font(.body.monospacedDigit())
+                        TextField("17:00", text: dayEnd(day))
+                            .font(.body.monospacedDigit())
+                            .frame(width: 64)
+                    }
+                }
+            } header: { Text(L.weekdayTimes.text) } footer: { Text(L.timesHelp.text).font(.caption) }
+            Section {
+                Toggle(L.openSlackAtStart.text, isOn: $windows.schedule.openSlack)
+                Toggle(L.quitSlackAtEnd.text, isOn: $windows.schedule.quitSlack)
+                Toggle(L.setSlackStatus.text, isOn: $windows.schedule.setStatus)
+                HStack {
+                    SecureField(L.slackToken.text, text: $token)
+                    Button(tokenSaved ? L.saved.text : L.send.text) {
+                        Keychain.set("slack-user-token", token.trimmingCharacters(in: .whitespacesAndNewlines))
+                        tokenSaved = true
+                    }
+                }
+                Text(L.slackTokenHelp.text).font(.caption).foregroundStyle(.secondary)
+                if let error = windows.lastError { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+            Section(L.statusTexts.text) {
+                statusRow($windows.schedule.windowEmoji, $windows.schedule.windowStatus)
+                statusRow($windows.schedule.focusEmoji, $windows.schedule.focusStatus)
+                statusRow($windows.schedule.offEmoji, $windows.schedule.offStatus)
+            }
+        }
+        .formStyle(.grouped)
+        .padding(8)
+        .frame(minHeight: 620)
+    }
+
+    private func statusRow(_ emoji: Binding<String>, _ text: Binding<String>) -> some View {
+        HStack {
+            TextField("", text: emoji).frame(width: 90).font(.caption.monospaced())
+            TextField("", text: text)
+        }
+    }
+
+    private func times(_ day: Int) -> Binding<String> {
+        Binding(
+            get: { (windows.schedule.times[day] ?? []).joined(separator: ", ") },
+            set: { value in
+                let parsed = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { $0.range(of: #"^\d{2}:\d{2}$"#, options: .regularExpression) != nil }
+                windows.schedule.times[day] = parsed.isEmpty ? nil : parsed.sorted()
+            })
+    }
+
+    private func dayEnd(_ day: Int) -> Binding<String> {
+        Binding(get: { windows.schedule.dayEnds[day] ?? "" },
+                set: { windows.schedule.dayEnds[day] = $0.isEmpty ? nil : $0 })
     }
 }
