@@ -13,7 +13,7 @@ enum Language: String, CaseIterable, Identifiable {
 /// Every string the app shows. The day's own content comes from today.json as written.
 enum L: String {
     case appTitle, focus, queue, parallel, whileWaiting, decisions, notToday
-    case openDay, openInBrowser, settings, quit, loading, noDay
+    case openDay, settings, quit, loading, noDay
     case messageAgent, newAgent, send, cancel, openLink, copyLine
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
@@ -28,7 +28,6 @@ enum L: String {
         .decisions: ("Decisions", "Decisiones"),
         .notToday: ("Not today", "Hoy no"),
         .openDay: ("Open day", "Abrir parte"),
-        .openInBrowser: ("Open in browser", "Abrir en el navegador"),
         .settings: ("Settings…", "Ajustes…"),
         .quit: ("Quit", "Salir"),
         .loading: ("Loading…", "Cargando…"),

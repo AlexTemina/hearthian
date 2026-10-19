@@ -338,9 +338,6 @@ struct MenuContent: View {
                 Button { openWindow(id: "day"); NSApp.activate(ignoringOtherApps: true) } label: {
                     Label(L.openDay.text, systemImage: "macwindow")
                 }
-                Button { NSWorkspace.shared.open(Store.pageFile) } label: {
-                    Label(L.openInBrowser.text, systemImage: "safari")
-                }
                 Spacer()
                 SettingsLink { Image(systemName: "gearshape") }.help(L.settings.text)
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help(L.quit.text)

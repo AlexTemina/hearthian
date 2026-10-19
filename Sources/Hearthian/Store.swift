@@ -7,13 +7,11 @@ enum Paths {
     static let folder = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Hearthian")
     static let dayFile = folder.appendingPathComponent("today.json")
-    static let pageFile = folder.appendingPathComponent("today.html")
 }
 
 @MainActor
 final class Store: ObservableObject {
     static let dayFile = Paths.dayFile
-    static let pageFile = Paths.pageFile
 
     @Published private(set) var day: Day?
     @Published private(set) var error: String?
