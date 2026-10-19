@@ -52,9 +52,13 @@ final class AgentMonitor: ObservableObject {
         self.timer = timer
     }
 
+    /// The most relevant agent state among all the item's worktrees: one waiting for you beats one
+    /// thinking, which beats an idle one.
     func status(for item: Item) -> AgentStatus? {
-        guard let w = Orca.worktree(for: item, in: worktrees) else { return nil }
-        return byWorktree[w.id]
+        Orca.candidates(for: item, in: worktrees)
+            .compactMap { byWorktree[$0.id] }
+            .filter { $0.state != .none }
+            .max { $0.state.rank < $1.state.rank }
     }
 
     func poll() {

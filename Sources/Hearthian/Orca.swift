@@ -70,6 +70,17 @@ enum Orca {
         return try JSONDecoder().decode(Envelope<Terminals>.self, from: data).result.terminals
     }
 
+    /// Every worktree that belongs to the item: linked to its issue or PR, or named after them.
+    static func candidates(for item: Item, in worktrees: [Worktree]) -> [Worktree] {
+        let issue = item.issue?.lowercased()
+        return worktrees.filter { w in
+            if let issue, w.linkedLinearIssue?.lowercased() == issue || w.displayName.lowercased().contains(issue)
+                || w.path.lowercased().contains(issue) { return true }
+            if let pr = item.pr, w.linkedPR == pr || w.displayName.contains("\(pr)") || w.path.contains("\(pr)") { return true }
+            return false
+        }
+    }
+
     static func worktree(for item: Item, in worktrees: [Worktree]) -> Worktree? {
         if let issue = item.issue?.lowercased() {
             if let w = worktrees.first(where: { $0.linkedLinearIssue?.lowercased() == issue }) { return w }
@@ -85,9 +96,16 @@ enum Orca {
     /// The live agent of the item's worktree, if there is one.
     static func agent(for item: Item) throws -> (Worktree, Terminal?)? {
         let all = try worktrees()
-        guard let worktree = worktree(for: item, in: all) else { return nil }
-        let live = try terminals().filter { $0.worktreeId == worktree.id && $0.connected }
-        return (worktree, live.first(where: { ($0.title ?? "").hasPrefix("✳") }) ?? live.first)
+        let found = candidates(for: item, in: all)
+        guard !found.isEmpty else { return nil }
+        let live = try terminals().filter { $0.connected }
+        // Prefer the worktree that has an agent, then the one Orca links to the issue or PR.
+        for w in found {
+            let mine = live.filter { $0.worktreeId == w.id }
+            if let agent = mine.first(where: { $0.agentIdentity != nil || ($0.title ?? "").hasPrefix("✳") }) { return (w, agent) }
+        }
+        let primary = worktree(for: item, in: found) ?? found[0]
+        return (primary, live.first { $0.worktreeId == primary.id })
     }
 
     static func focus(_ terminal: Terminal) throws {
