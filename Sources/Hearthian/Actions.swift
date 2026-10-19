@@ -14,6 +14,11 @@ enum Actions {
         if let url = URL(string: link.url) { NSWorkspace.shared.open(url) }
     }
 
+    /// The item becomes the active one of its planet.
+    static func activate(_ item: Item) {
+        Journey.shared.activate(item, in: store?.day)
+    }
+
     static func copy(_ item: Item) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(item.md, forType: .string)
@@ -21,6 +26,7 @@ enum Actions {
 
     /// Back to the item's live agent, else a new agent in its worktree, else in the fallback one.
     static func jump(_ item: Item) {
+        activate(item)
         perform {
             let config = Config.load()
             if let (worktree, terminal) = try Orca.agent(for: item) {
@@ -35,6 +41,7 @@ enum Actions {
 
     /// A message for the live agent of the item's worktree. No live agent: a new one gets it.
     static func message(_ text: String, to item: Item) {
+        activate(item)
         perform {
             if let (worktree, terminal) = try Orca.agent(for: item) {
                 if let terminal { try Orca.send(text, to: terminal) } else {
@@ -49,6 +56,7 @@ enum Actions {
 
     /// Always a fresh agent, in the item's worktree or the fallback one.
     static func newAgent(_ prompt: String, for item: Item) {
+        activate(item)
         perform {
             let worktree = try Orca.agent(for: item)?.0 ?? Orca.fallback()
             try Orca.newAgent(prompt: prompt, in: worktree)

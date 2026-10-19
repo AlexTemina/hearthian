@@ -127,6 +127,7 @@ struct ItemRow: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .contextMenu {
+            Button(L.makeActive.text) { Actions.activate(item) }
             Button(L.messageAgent.text) { toggle(.message) }
             Button(L.newAgent.text) { toggle(.newAgent) }
             Divider()
@@ -386,8 +387,9 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DayView(store: store, compact: true, inMenu: true)
-                .frame(width: 460, height: 640)
+            PlanetView(store: store, planet: Journey.shared.current, compact: true)
+                .id(Journey.shared.current)
+                .frame(width: 460, height: 600)
             Divider()
             WindowBar()
             Divider()
@@ -425,6 +427,7 @@ struct SettingsView: View {
 struct GeneralSettings: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var atLogin = LoginItem.isOn
+    @AppStorage("showAllPlanets") private var showAllPlanets = true
 
     var body: some View {
         Form {
@@ -433,6 +436,7 @@ struct GeneralSettings: View {
                 Text(L.english.text).tag(Language.en.rawValue)
                 Text(L.spanish.text).tag(Language.es.rawValue)
             }
+            Toggle(L.showAllPlanets.text, isOn: $showAllPlanets)
             Toggle(L.launchAtLogin.text, isOn: $atLogin)
                 .onChange(of: atLogin) { _, on in LoginItem.set(on); atLogin = LoginItem.isOn }
                 .help(L.openAtLoginHelp.text)

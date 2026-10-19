@@ -2,6 +2,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: Hashable {
+    case planet(Planet)
     case today, matrix, parallel, decisions, notToday, agents
     case section(String)
 }
@@ -10,19 +11,24 @@ struct MainWindow: View {
     @ObservedObject var store: Store
     @ObservedObject private var monitor = AgentMonitor.shared
     @EnvironmentObject private var settings: AppSettings
-    @State private var page: Page? = .today
+    @ObservedObject private var journey = Journey.shared
+    @AppStorage("showAllPlanets") private var showAllPlanets = true
+    @State private var page: Page? = .planet(.timberHearth)
 
     var body: some View {
         NavigationSplitView {
             sidebar.navigationSplitViewColumnWidth(min: 200, ideal: 230)
         } detail: {
             if let day = store.day {
-                detail(day, page ?? .today)
+                detail(day, page ?? .planet(journey.current))
                     .id(page)
+                    .onAppear { journey.sync(day); page = .planet(journey.current) }
             } else {
                 DayView(store: store, compact: false)
             }
         }
+        .onChange(of: journey.current) { _, planet in page = .planet(planet) }
+        .onChange(of: page) { _, value in if case .planet(let p) = value, p != journey.current { journey.current = p } }
         .navigationTitle(store.day?.eyebrow ?? "Hearthian")
         .navigationSubtitle(store.updated.map { "\(L.updatedAt.text) \(SlackWindows.hm($0))" } ?? "")
         .toolbar {
@@ -40,8 +46,13 @@ struct MainWindow: View {
     private var sidebar: some View {
         List(selection: $page) {
             if let day = store.day {
+                Section("Hearthian") {
+                    ForEach(Planet.allCases.filter { showAllPlanets || $0 == journey.current }) { planet in
+                        planetRow(planet, day)
+                    }
+                }
                 Section {
-                    row(.today, L.appTitle.text, "flame.fill", "\(day.progress.done)/\(day.progress.total)")
+                    row(.today, L.appTitle.text, "doc.text", "\(day.progress.done)/\(day.progress.total)")
                     if let matrix = day.matrix, !matrix.quadrants.isEmpty {
                         row(.matrix, L.matrix.text, "square.grid.2x2", nil)
                     }
@@ -81,6 +92,34 @@ struct MainWindow: View {
         }
     }
 
+    private func planetRow(_ planet: Planet, _ day: Day) -> some View {
+        let item = planet == .timberHearth ? journey.frog(day) : journey.activeItem(planet, day)
+        let state = item.flatMap { $0.isOpen ? monitor.status(for: $0)?.state : nil }
+        let open = journey.items(planet, day).filter(\.isOpen).count
+        return HStack(spacing: 8) {
+            Image(systemName: planet.icon).foregroundStyle(planet.tone).frame(width: 18)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(planet.name).font(.body.weight(planet == journey.current ? .bold : .regular))
+                if let item { Text(item.heading).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            }
+            Spacer()
+            if let state, state != .none, state != .idle {
+                Circle().fill(dot(state)).frame(width: 8, height: 8)
+            }
+            if planet != .timberHearth { Text("\(open)").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
+        }
+        .tag(Page.planet(planet))
+    }
+
+    private func dot(_ state: AgentState) -> Color {
+        switch state {
+        case .thinking: .blue
+        case .needsYou: .orange
+        case .stuck: .gray
+        default: .clear
+        }
+    }
+
     private var agentBadge: String? {
         let waiting = AgentMonitor.shared.byWorktree.values.filter { $0.state == .needsYou }.count
         return waiting > 0 ? "\(waiting)" : nil
@@ -117,6 +156,8 @@ struct MainWindow: View {
     @ViewBuilder
     private func detail(_ day: Day, _ page: Page) -> some View {
         switch page {
+        case .planet(let planet):
+            PlanetView(store: store, planet: planet)
         case .today:
             DayView(store: store, compact: true)
         case .parallel:

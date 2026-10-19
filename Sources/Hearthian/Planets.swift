@@ -1,0 +1,139 @@
+import SwiftUI
+
+/// The three layers of attention, named after the planets of Outer Wilds from the Sun outwards.
+enum Planet: Int, CaseIterable, Identifiable, Codable {
+    case timberHearth = 1, brittleHollow, giantsDeep
+    var id: Int { rawValue }
+
+    var name: String {
+        switch self {
+        case .timberHearth: "Timber Hearth"
+        case .brittleHollow: "Brittle Hollow"
+        case .giantsDeep: "Giant's Deep"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .timberHearth: "flame.fill"
+        case .brittleHollow: "circle.bottomhalf.filled"
+        case .giantsDeep: "water.waves"
+        }
+    }
+
+    var tone: Color {
+        switch self {
+        case .timberHearth: .orange
+        case .brittleHollow: .purple
+        case .giantsDeep: .teal
+        }
+    }
+
+    @MainActor var role: String {
+        switch self {
+        case .timberHearth: L.roleFrog.text
+        case .brittleHollow: L.roleWhileFrog.text
+        case .giantsDeep: L.roleLight.text
+        }
+    }
+
+    var below: Planet? { Planet(rawValue: rawValue + 1) }
+    var above: Planet? { Planet(rawValue: rawValue - 1) }
+}
+
+/// Where he is and what is active on each planet. Local to this Mac, one record per day.
+@MainActor
+final class Journey: ObservableObject {
+    static let shared = Journey()
+
+    @Published var current: Planet = .timberHearth { didSet { save() } }
+    @Published private var active: [Int: String] = [:]
+    @Published private var frogOverride: String?
+    @Published private(set) var forcedDescents: [String] = []
+    private var date = ""
+
+    func sync(_ day: Day) {
+        guard day.date != date else { return }
+        date = day.date
+        let saved = UserDefaults.standard.dictionary(forKey: "journey-\(day.date)") ?? [:]
+        current = Planet(rawValue: saved["current"] as? Int ?? 1) ?? .timberHearth
+        active = (saved["active"] as? [String: String] ?? [:]).reduce(into: [:]) { r, kv in
+            if let k = Int(kv.key) { r[k] = kv.value }
+        }
+        frogOverride = saved["frog"] as? String
+        forcedDescents = saved["forced"] as? [String] ?? []
+    }
+
+    private func save() {
+        guard !date.isEmpty else { return }
+        var record: [String: Any] = ["current": current.rawValue,
+                                     "active": Dictionary(uniqueKeysWithValues: active.map { ("\($0.key)", $0.value) }),
+                                     "forced": forcedDescents]
+        if let frogOverride { record["frog"] = frogOverride }
+        UserDefaults.standard.set(record, forKey: "journey-\(date)")
+    }
+
+    // MARK: Items
+
+    func items(_ planet: Planet, _ day: Day) -> [Item] {
+        if let layers = day.layers {
+            switch planet {
+            case .timberHearth: return frog(day).map { [$0] } ?? []
+            case .brittleHollow: return layers.brittleHollow.filter { $0.md != frog(day)?.md }
+            case .giantsDeep: return layers.giantsDeep
+            }
+        }
+        switch planet {
+        case .timberHearth: return day.focus.map { [$0] } ?? []
+        case .brittleHollow: return day.queue + day.decisions + day.parallel
+        case .giantsDeep: return day.whileWaiting.map { [Item(text: $0, md: $0, status: "open", size: nil, tags: [], links: [], issue: nil, pr: nil, kind: "light")] } ?? []
+        }
+    }
+
+    func frog(_ day: Day) -> Item? {
+        if let id = frogOverride, let promoted = (day.layers?.brittleHollow ?? day.queue).first(where: { $0.md == id }) {
+            return promoted
+        }
+        return day.layers?.timberHearth.first ?? day.focus
+    }
+
+    func activeItem(_ planet: Planet, _ day: Day) -> Item? {
+        let list = items(planet, day)
+        if let id = active[planet.rawValue], let item = list.first(where: { $0.md == id && $0.isOpen }) { return item }
+        return list.first(where: \.isOpen)
+    }
+
+    func nextItem(_ planet: Planet, _ day: Day) -> Item? {
+        let list = items(planet, day)
+        let current = activeItem(planet, day)
+        return list.first { $0.isOpen && $0.md != current?.md }
+    }
+
+    func planet(of item: Item, _ day: Day) -> Planet? {
+        Planet.allCases.first { items($0, day).contains { $0.md == item.md } }
+    }
+
+    // MARK: Moves
+
+    func activate(_ item: Item, in day: Day?) {
+        guard let day, let planet = planet(of: item, day), planet != .timberHearth else { return }
+        active[planet.rawValue] = item.md
+        save()
+    }
+
+    /// The frog is done: the chosen Brittle Hollow item becomes the frog.
+    func promote(_ item: Item) {
+        frogOverride = item.md
+        active[Planet.brittleHollow.rawValue] = nil
+        current = .timberHearth
+        save()
+    }
+
+    func descend(from planet: Planet, forced reason: String? = nil) {
+        guard let below = planet.below else { return }
+        if let reason { forcedDescents.append("\(SlackWindows.hm(.now)) \(planet.name) → \(below.name): \(reason)") }
+        current = below
+    }
+
+    func ascend(to planet: Planet) { current = planet }
+}

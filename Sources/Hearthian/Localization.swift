@@ -18,6 +18,7 @@ enum L: String {
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
     case slackWindows, windowsEnabled, windowLength, minutesUnit, weekdayTimes, timesHelp, openSlackAtStart, quitSlackAtEnd, setSlackStatus, slackToken, slackTokenHelp, statusTexts, windowStarts, windowStartsBody, windowEnds, windowEndsBody, lastWindowBody, extendWindow, skipWindow, startWindowNow, endWindowNow, windowOpenUntil, nextWindow, general, monday, tuesday, wednesday, thursday, friday, saturday, sunday, saved
+    case roleFrog, roleWhileFrog, roleLight, descendTo, ascendTo, descendLocked, descendAnyway, whyDescend, waitingAbove, frogDone, promoteNext, activeNow, nextUp, everything, makeActive, kindDecision, kindAuto, kindLight, showAllPlanets, nothingHere, layerDone, backToFrog
     case reload, updatedAt, agents, agentThinking, agentNeedsYou, agentStuck, agentIdle
     case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
@@ -56,6 +57,28 @@ enum L: String {
         .next: ("Next", "Ahora"),
         .map: ("Map", "Mapa"),
         .reload: ("Reload", "Recargar"),
+        .roleFrog: ("The frog: the one thing that makes the day", "La rana: lo que hace bueno el día"),
+        .roleWhileFrog: ("Where you go while the frog's agent works", "A donde vas mientras trabaja el agente de la rana"),
+        .roleLight: ("Small things with no agent, for while two agents work", "Cosas pequeñas sin agente, mientras trabajan dos"),
+        .descendTo: ("Go down to", "Bajar a"),
+        .ascendTo: ("Back up to", "Subir a"),
+        .descendLocked: ("Leave an agent thinking here to go down", "Deja un agente pensando aquí para bajar"),
+        .descendAnyway: ("Go down anyway…", "Bajar igualmente…"),
+        .whyDescend: ("Why go down without an agent working?", "¿Por qué bajas sin un agente trabajando?"),
+        .waitingAbove: ("They are waiting for you on", "Te esperan en"),
+        .frogDone: ("The frog is done 🎉", "La rana está hecha 🎉"),
+        .promoteNext: ("Make the next one the frog", "Subir la siguiente a rana"),
+        .activeNow: ("Active", "Activa"),
+        .nextUp: ("Next", "Siguiente"),
+        .everything: ("All", "Todas"),
+        .makeActive: ("Work on this one", "Me pongo con esta"),
+        .kindDecision: ("decision", "decisión"),
+        .kindAuto: ("runs alone", "va sola"),
+        .kindLight: ("light", "ligera"),
+        .showAllPlanets: ("Show every planet in the sidebar", "Ver todos los planetas en el sidebar"),
+        .nothingHere: ("Nothing here today", "Hoy no hay nada aquí"),
+        .layerDone: ("All done on this planet", "Todo hecho en este planeta"),
+        .backToFrog: ("Back to the frog", "Volver a la rana"),
         .agents: ("Agents", "Agentes"),
         .agentThinking: ("thinking", "pensando"),
         .agentNeedsYou: ("needs you", "te espera"),

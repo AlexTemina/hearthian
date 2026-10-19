@@ -15,6 +15,7 @@ struct Item: Codable, Hashable, Identifiable {
     let links: [Link]
     let issue: String?
     let pr: Int?
+    var kind: String? = nil
 
     var isOpen: Bool { status == "open" }
 
@@ -123,7 +124,15 @@ struct Day: Codable {
     let notToday: [Item]
     let sections: [DaySection]
     let matrix: Matrix?
+    let layers: Layers?
     let progress: Progress
 
     var next: Item? { queue.first(where: \.isOpen) }
+}
+
+
+struct Layers: Codable {
+    let timberHearth: [Item]
+    let brittleHollow: [Item]
+    let giantsDeep: [Item]
 }
