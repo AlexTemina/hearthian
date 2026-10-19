@@ -55,7 +55,7 @@ struct Day: Codable {
     let date: String
     let eyebrow: String
     let week: String?
-    let laUna: Item?
+    let focus: Item?
     let slots: [Slot]
     let queue: [Item]
     let parallel: [Item]

@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
 
-/// Reads ~/Library/Application Support/Parte/hoy.json and keeps it current: the vault's renderer
+/// Reads ~/Library/Application Support/Hearthian/hoy.json and keeps it current: the vault's renderer
 /// rewrites that file on every Daily refresh, and the app picks it up within two seconds.
 enum Paths {
     static let folder = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Parte")
-    static let dayFile = folder.appendingPathComponent("hoy.json")
-    static let pageFile = folder.appendingPathComponent("hoy.html")
+        .appendingPathComponent("Library/Application Support/Hearthian")
+    static let dayFile = folder.appendingPathComponent("today.json")
+    static let pageFile = folder.appendingPathComponent("today.html")
 }
 
 @MainActor
@@ -18,6 +18,7 @@ final class Store: ObservableObject {
     @Published private(set) var day: Day?
     @Published private(set) var error: String?
     @Published private(set) var updated: Date?
+    @Published var failure: String?
 
     private var lastModified: Date?
     private var timer: Timer?
@@ -42,7 +43,15 @@ final class Store: ObservableObject {
             error = nil
             updated = modified
         } catch {
-            self.error = "No hay parte todavía en \(Self.dayFile.path)"
+            self.error = Self.dayFile.path
+        }
+    }
+
+    func report(_ message: String) {
+        failure = message
+        Task {
+            try? await Task.sleep(for: .seconds(8))
+            if failure == message { failure = nil }
         }
     }
 

@@ -28,7 +28,7 @@ enum Orca {
         var errorDescription: String? {
             switch self {
             case .command(let message): message
-            case .noWorktree(let target): "No hay worktree para \(target) y no hay worktree de reserva en ~/Library/Application Support/Parte/config.json"
+            case .noWorktree(let target): "No worktree for \(target), and no fallbackWorktree in \(Config.file.path)"
             }
         }
     }
@@ -46,7 +46,7 @@ enum Orca {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             let message = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw Failure.command(message.isEmpty ? "orca \(arguments.first ?? "") falló" : message)
+            throw Failure.command(message.isEmpty ? "orca \(arguments.first ?? "") failed" : message)
         }
         return data
     }
@@ -96,7 +96,7 @@ enum Orca {
     }
 
     static func newAgent(prompt: String, in worktree: Worktree) throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("parte-\(UUID().uuidString)")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hearthian-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("prompt.txt")
         try prompt.write(to: file, atomically: true, encoding: .utf8)
@@ -110,13 +110,13 @@ enum Orca {
     static func fallback() throws -> Worktree {
         let path = Config.load().fallbackWorktree
         guard let path, let w = try worktrees().first(where: { $0.path == path }) else {
-            throw Failure.noWorktree("este item")
+            throw Failure.noWorktree("this item")
         }
         return w
     }
 }
 
-/// ~/Library/Application Support/Parte/config.json. Nothing personal lives in the code.
+/// ~/Library/Application Support/Hearthian/config.json. Nothing personal lives in the code.
 struct Config: Codable {
     var fallbackWorktree: String?
     var startPrompt: String = "Start working on {target}: {text}"
