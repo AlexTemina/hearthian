@@ -23,6 +23,14 @@ struct MainWindow: View {
             }
         }
         .navigationTitle(store.day?.eyebrow ?? "Hearthian")
+        .navigationSubtitle(store.updated.map { "\(L.updatedAt.text) \(SlackWindows.hm($0))" } ?? "")
+        .toolbar {
+            ToolbarItem {
+                Button { store.load(force: true) } label: { Label(L.reload.text, systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r")
+                    .help(L.reload.text)
+            }
+        }
         .overlay(alignment: .bottom) { failure }
     }
 

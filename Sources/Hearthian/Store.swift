@@ -18,30 +18,48 @@ final class Store: ObservableObject {
     @Published private(set) var updated: Date?
     @Published var failure: String?
 
-    private var lastModified: Date?
+    private var lastData: Data?
     private var timer: Timer?
+    private var watcher: DispatchSourceFileSystemObject?
 
     init() {
         load()
-        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.load() }
+        // The folder, not the file: the exporter replaces today.json atomically, so the file's
+        // descriptor would go stale after the first write.
+        try? FileManager.default.createDirectory(at: Paths.folder, withIntermediateDirectories: true)
+        let fd = open(Paths.folder.path, O_EVTONLY)
+        if fd >= 0 {
+            let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete],
+                                                                   queue: .main)
+            source.setEventHandler { [weak self] in Task { @MainActor in self?.load() } }
+            source.setCancelHandler { close(fd) }
+            source.resume()
+            watcher = source
         }
+        // A safety net in every run loop mode, so it also ticks while a menu is open.
+        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in Task { @MainActor in self?.load() } }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
-    func load() {
-        let attributes = try? FileManager.default.attributesOfItem(atPath: Self.dayFile.path)
-        let modified = attributes?[.modificationDate] as? Date
-        guard modified != lastModified || day == nil else { return }
-        lastModified = modified
+    /// Reads today.json when its bytes changed. A file that does not decode is retried on the
+    /// next event and the error is shown, instead of silently keeping the old day.
+    func load(force: Bool = false) {
+        guard let data = try? Data(contentsOf: Self.dayFile) else {
+            if day == nil { error = Self.dayFile.path }
+            return
+        }
+        guard force || data != lastData else { return }
         do {
-            let data = try Data(contentsOf: Self.dayFile)
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             day = try decoder.decode(Day.self, from: data)
+            lastData = data
             error = nil
-            updated = modified
+            updated = .now
         } catch {
-            self.error = Self.dayFile.path
+            self.error = "\(Self.dayFile.lastPathComponent): \(error.localizedDescription)"
+            report(self.error ?? "")
         }
     }
 
