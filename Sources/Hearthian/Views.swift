@@ -335,7 +335,7 @@ struct MenuContent: View {
                 .frame(width: 460, height: 640)
             Divider()
             HStack(spacing: 14) {
-                Button { openWindow(id: "day"); NSApp.activate(ignoringOtherApps: true) } label: {
+                Button { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) } label: {
                     Label(L.openDay.text, systemImage: "macwindow")
                 }
                 Spacer()
@@ -354,9 +354,13 @@ struct MenuContent: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
+    @State private var atLogin = LoginItem.isOn
 
     var body: some View {
         Form {
+            Toggle(L.launchAtLogin.text, isOn: $atLogin)
+                .onChange(of: atLogin) { _, on in LoginItem.set(on); atLogin = LoginItem.isOn }
+                .help(L.openAtLoginHelp.text)
             Picker(L.language.text, selection: $settings.languageRaw) {
                 Text(L.systemLanguage.text).tag(Language.system.rawValue)
                 Text(L.english.text).tag(Language.en.rawValue)

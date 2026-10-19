@@ -1,10 +1,11 @@
 #!/bin/bash
-# Build Hearthian.app into ~/Applications and (re)launch it.
+# Build Hearthian.app, install it in /Applications and (re)launch it.
+# HEARTHIAN_APP_DIR overrides the install folder; HEARTHIAN_NO_LAUNCH=1 builds without launching.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
-app="$HOME/Applications/Hearthian.app"
-pkill -x Hearthian 2>/dev/null || true
+app="${HEARTHIAN_APP_DIR:-/Applications}/Hearthian.app"
+[ "${HEARTHIAN_NO_LAUNCH:-}" = 1 ] || pkill -x Hearthian 2>/dev/null || true
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp .build/release/Hearthian "$app/Contents/MacOS/Hearthian"
@@ -28,10 +29,11 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Hearthian</string>
   <key>CFBundleIconFile</key><string>Hearthian</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
-  <key>LSUIElement</key><true/>
+  <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+  <key>NSHumanReadableCopyright</key><string>MIT License</string>
 </dict>
 </plist>
 PLIST
@@ -43,5 +45,5 @@ else
   echo "no '$identity' signing identity, signing ad-hoc (permissions reset on every build)" >&2
   codesign --force --sign - "$app"
 fi
-open "$app"
+[ "${HEARTHIAN_NO_LAUNCH:-}" = 1 ] || open "$app"
 echo "$app"

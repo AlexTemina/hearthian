@@ -17,7 +17,7 @@ enum L: String {
     case messageAgent, newAgent, send, cancel, openLink, copyLine
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
-    case updated, next
+    case updated, next, map, launchAtLogin, openAtLoginHelp
 
     private static let table: [L: (en: String, es: String)] = [
         .appTitle: ("Today", "Parte del día"),
@@ -51,7 +51,10 @@ enum L: String {
         .english: ("English", "Inglés"),
         .spanish: ("Spanish", "Español"),
         .updated: ("Updated", "Actualizado"),
-        .next: ("NEXT", "AHORA"),
+        .next: ("Next", "Ahora"),
+        .map: ("Map", "Mapa"),
+        .launchAtLogin: ("Open at login", "Abrir al iniciar sesión"),
+        .openAtLoginHelp: ("Keeps the menu bar item there from the moment you log in.", "Deja el ítem de la barra de menú puesto desde que inicias sesión."),
     ]
 
     @MainActor var text: String {

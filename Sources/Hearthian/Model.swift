@@ -40,7 +40,7 @@ struct Slot: Codable, Hashable, Identifiable {
     let text: String
 }
 
-struct Section: Codable, Identifiable {
+struct DaySection: Codable, Identifiable {
     var id: String { title }
     let title: String
     let items: [Item]
@@ -62,7 +62,7 @@ struct Day: Codable {
     let decisions: [Item]
     let whileWaiting: String?
     let notToday: String?
-    let sections: [Section]
+    let sections: [DaySection]
     let progress: Progress
 
     var next: Item? { queue.first(where: \.isOpen) }

@@ -1,13 +1,14 @@
 # Hearthian
 
-A macOS menu bar app for the day's plan. Named after the people of Outer Wilds, who travel with a campfire and a rocket. It shows a ranked queue of what to do today, keeps it live as the plan file changes, and jumps to the [Orca](https://onorca.dev) agent working on each item.
+A macOS app for the day's plan, with a menu bar item that is always there. Named after the people of Outer Wilds, who travel with a campfire and a rocket. It shows a ranked queue of what to do today, keeps it live as the plan file changes, and jumps to the [Orca](https://onorca.dev) agent working on each item.
 
 Hearthian does not plan anything itself. Something else writes `~/Library/Application Support/Hearthian/today.json` (in the author's setup, a Claude Code workflow over a notes vault), and Hearthian reads it every two seconds.
 
 ## What it does
 
 - **Menu bar:** `☀️ 4/15`, done over total in today's queue. Click for the day: the focus (the one thing that makes the day), the fixed slots, the queue with the next item marked, what runs in parallel.
-- **Window:** the same day plus decisions, what is out today and the other sections.
+- **Window:** a sidebar with the day, what runs in parallel, decisions, what is out today and every section of the map, each with its count. Closing it keeps Hearthian in the menu bar; the Dock icon brings it back.
+- **Open at login:** a switch in Settings.
 - **On each item:** click opens its first link. Three buttons on hover:
   - Robot: go to its agent in Orca. The live agent of the item's worktree, or a new one there, or a new one in the fallback worktree.
   - Robot with a speech bubble: write a message right there, ⌘↩ sends it to that live agent.
@@ -50,10 +51,11 @@ An item finds its worktree by the Linear issue Orca has linked to it, or by a PR
 macOS 14+, Xcode command line tools, Orca in `/Applications`, `claude` on the login shell `PATH`.
 
 ```sh
-./scripts/bundle.sh
+./scripts/bundle.sh     # build, install in /Applications, launch
+./scripts/package.sh    # dist/Hearthian-<version>.dmg, drag to Applications
 ```
 
-Builds `~/Applications/Hearthian.app`, ad-hoc signed, and launches it.
+Signing uses a code-signing identity named `Hearthian Local Signing` if your keychain has one (set `HEARTHIAN_SIGN_IDENTITY` for another), so macOS keeps its permissions across rebuilds; otherwise it signs ad-hoc. Hearthian runs the Orca CLI, which lives inside `Orca.app`, so macOS asks once for App Management.
 
 ## License
 
