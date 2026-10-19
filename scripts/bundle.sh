@@ -35,6 +35,13 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-codesign --force --sign - "$app" >/dev/null 2>&1 || true
+# A stable identity keeps macOS permissions across rebuilds; ad-hoc resets them every build.
+identity="${HEARTHIAN_SIGN_IDENTITY:-Hearthian Local Signing}"
+if security find-identity -v -p codesigning | grep -q "\"$identity\""; then
+  codesign --force --sign "$identity" "$app"
+else
+  echo "no '$identity' signing identity, signing ad-hoc (permissions reset on every build)" >&2
+  codesign --force --sign - "$app"
+fi
 open "$app"
 echo "$app"
