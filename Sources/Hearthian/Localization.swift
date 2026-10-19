@@ -17,13 +17,13 @@ enum L: String {
     case messageAgent, newAgent, send, cancel, openLink, copyLine
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
-    case updated, next, map, launchAtLogin, openAtLoginHelp
+    case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
     private static let table: [L: (en: String, es: String)] = [
         .appTitle: ("Today", "Parte del día"),
         .focus: ("THE ONE THING", "LA UNA"),
         .queue: ("Queue", "Cola"),
-        .parallel: ("Running in parallel", "En paralelo"),
+        .parallel: ("Automatic agents", "Agentes automáticos"),
         .whileWaiting: ("While you wait", "Mientras esperas"),
         .decisions: ("Decisions", "Decisiones"),
         .notToday: ("Not today", "Hoy no"),
@@ -53,6 +53,8 @@ enum L: String {
         .updated: ("Updated", "Actualizado"),
         .next: ("Next", "Ahora"),
         .map: ("Map", "Mapa"),
+        .matrix: ("Eisenhower matrix", "Matriz de Eisenhower"),
+        .timeline: ("Timeline", "Timeline"),
         .launchAtLogin: ("Open at login", "Abrir al iniciar sesión"),
         .openAtLoginHelp: ("Keeps the menu bar item there from the moment you log in.", "Deja el ítem de la barra de menú puesto desde que inicias sesión."),
     ]

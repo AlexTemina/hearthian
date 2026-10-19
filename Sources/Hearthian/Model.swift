@@ -31,6 +31,65 @@ struct Item: Codable, Hashable, Identifiable {
 
     /// What identifies the work in Orca: a Linear issue, else a PR number.
     var target: String? { issue ?? pr.map { "#\($0)" } }
+
+    /// The Linear issue or PR the line is about: its first link.
+    var primary: Link? { links.first }
+
+    /// The line without its leading link, when the line starts with it.
+    var detail: String? {
+        guard let title = primary?.title, text.hasPrefix(title) else { return primary == nil ? nil : text }
+        let rest = text.dropFirst(title.count).trimmingCharacters(in: CharacterSet(charactersIn: ":,.;—- ").union(.whitespaces))
+        return rest.isEmpty ? nil : rest.prefix(1).uppercased() + rest.dropFirst()
+    }
+
+    var heading: String { primary?.title ?? text }
+}
+
+/// A timeline line, `HH:MM ✅ what happened`.
+struct Event: Identifiable, Hashable {
+    let id: String
+    let time: String
+    let mark: String
+    let item: Item
+
+    init?(_ item: Item) {
+        let parts = item.text.split(separator: " ", maxSplits: 2).map(String.init)
+        guard parts.count == 3, parts[0].count == 5, parts[0].dropFirst(2).first == ":" else { return nil }
+        id = item.md
+        time = parts[0]
+        mark = parts[1]
+        self.item = item
+    }
+
+    var text: String { item.text.split(separator: " ", maxSplits: 2).dropFirst(2).joined() }
+
+    /// What kind of event it is, from the words in it.
+    var symbol: String {
+        let t = text.lowercased()
+        if mark == "↔" || mark == "↔️" { return "arrow.down.right.circle.fill" }
+        if mark == "❌" { return "xmark.octagon.fill" }
+        if t.contains("review") { return "checkmark.bubble.fill" }
+        if t.contains("merge") || t.contains("pr ") || t.contains("prs") { return "arrow.triangle.merge" }
+        if t.contains("auditor") || t.contains("apply") { return "binoculars.fill" }
+        if t.contains("standup") || t.contains("slack") || t.contains("mensaje") || t.contains("contestad") || t.contains("message") { return "bubble.left.and.bubble.right.fill" }
+        if t.contains("reunión") || t.contains("meeting") || t.contains("café") || t.contains("coffee") { return "person.2.fill" }
+        if t.contains("spike") || t.contains("agente") || t.contains("agent") || t.contains("commit") { return "hammer.fill" }
+        if t.contains("done") || t.contains("cerrad") || t.contains("closed") { return "checkmark.seal.fill" }
+        if t.contains("feedback") || t.contains("shoutout") { return "hand.thumbsup.fill" }
+        return "circle.fill"
+    }
+}
+
+struct Quadrant: Codable, Identifiable {
+    let id: String
+    let title: String
+    let axis: String
+    let items: [Item]
+}
+
+struct Matrix: Codable {
+    let quadrants: [Quadrant]
+    let split: String?
 }
 
 struct Slot: Codable, Hashable, Identifiable {
@@ -61,8 +120,9 @@ struct Day: Codable {
     let parallel: [Item]
     let decisions: [Item]
     let whileWaiting: String?
-    let notToday: String?
+    let notToday: [Item]
     let sections: [DaySection]
+    let matrix: Matrix?
     let progress: Progress
 
     var next: Item? { queue.first(where: \.isOpen) }

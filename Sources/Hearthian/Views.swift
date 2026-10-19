@@ -63,8 +63,10 @@ struct ItemRow: View {
     let item: Item
     var isNext = false
     var showActions = true
+    var showStatus = true
 
     @State private var hover = false
+    @State private var titleHover = false
     @State private var composer: ComposerMode?
     @State private var draft = ""
     @FocusState private var focused: Bool
@@ -72,20 +74,38 @@ struct ItemRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 10) {
-                StatusMark(item: item, isNext: isNext).padding(.top, 1)
-                VStack(alignment: .leading, spacing: 4) {
+                if showStatus { StatusMark(item: item, isNext: isNext).padding(.top, 1) }
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        if let primary = item.primary {
+                            Button { Actions.open(primary) } label: {
+                                Text(item.heading)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .underline(titleHover)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .buttonStyle(.plain)
+                            .onHover { titleHover = $0 }
+                            .help(primary.url)
+                        } else {
+                            Text(item.heading).font(.system(size: 13, weight: isNext ? .semibold : .regular))
+                        }
+                    }
+                    .strikethrough(!item.isOpen, color: .secondary.opacity(0.6))
+                    .foregroundStyle(item.isOpen ? .primary : .secondary)
                     if item.size != nil || !item.tags.isEmpty {
                         HStack(spacing: 4) {
                             if let size = item.size { Chip(text: size, strong: true) }
                             ForEach(item.tags, id: \.self) { Chip(text: $0) }
                         }
                     }
-                    Text(item.text)
-                        .font(.system(size: 13, weight: isNext ? .semibold : .regular))
-                        .lineSpacing(2)
-                        .strikethrough(!item.isOpen, color: .secondary.opacity(0.6))
-                        .foregroundStyle(item.isOpen ? .primary : .secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail = item.detail {
+                        Text(detail)
+                            .font(.system(size: 12))
+                            .lineSpacing(2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: 6)
                 if showActions {
@@ -104,7 +124,6 @@ struct ItemRow: View {
                     in: RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
         .onHover { hover = $0 }
-        .onTapGesture { if composer == nil { Actions.open(item) } }
         .contextMenu {
             Button(L.messageAgent.text) { toggle(.message) }
             Button(L.newAgent.text) { toggle(.newAgent) }
@@ -197,6 +216,7 @@ struct DayView: View {
     @ObservedObject var store: Store
     @EnvironmentObject private var settings: AppSettings
     var compact: Bool
+    var inMenu = false
 
     var body: some View {
         Group {
@@ -241,7 +261,9 @@ struct DayView: View {
                     if !day.decisions.isEmpty {
                         Card(title: L.decisions.text) { ForEach(day.decisions) { ItemRow(item: $0) } }
                     }
-                    if let notToday = day.notToday { note(L.notToday.text, notToday) }
+                    if !day.notToday.isEmpty {
+                        Card(title: L.notToday.text) { ForEach(day.notToday) { ItemRow(item: $0) } }
+                    }
                     ForEach(day.sections) { section in
                         Card(title: section.title) { ForEach(section.items) { ItemRow(item: $0) } }
                     }
@@ -254,7 +276,9 @@ struct DayView: View {
     private func header(_ day: Day) -> some View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(day.eyebrow.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(0.6).foregroundStyle(.secondary)
+                if inMenu {
+                    Text(day.eyebrow.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(0.6).foregroundStyle(.secondary)
+                }
                 Text(L.appTitle.text).font(.system(size: 22, weight: .bold, design: .rounded))
                 if let week = day.week {
                     Text(week).font(.caption).foregroundStyle(.secondary).lineLimit(compact ? 2 : nil)
@@ -331,7 +355,7 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DayView(store: store, compact: true)
+            DayView(store: store, compact: true, inMenu: true)
                 .frame(width: 460, height: 640)
             Divider()
             HStack(spacing: 14) {

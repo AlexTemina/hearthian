@@ -2,7 +2,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: Hashable {
-    case today, parallel, decisions, notToday
+    case today, matrix, parallel, decisions, notToday
     case section(String)
 }
 
@@ -33,16 +33,21 @@ struct MainWindow: View {
             if let day = store.day {
                 Section {
                     row(.today, L.appTitle.text, "flame.fill", "\(day.progress.done)/\(day.progress.total)")
-                    if !day.parallel.isEmpty { row(.parallel, L.parallel.text, "arrow.triangle.branch", "\(day.parallel.count)") }
+                    if let matrix = day.matrix, !matrix.quadrants.isEmpty {
+                        row(.matrix, L.matrix.text, "square.grid.2x2", nil)
+                    }
+                    if !day.parallel.isEmpty { row(.parallel, L.parallel.text, "cpu", "\(day.parallel.count)") }
                     if !day.decisions.isEmpty {
                         row(.decisions, L.decisions.text, "questionmark.bubble", "\(day.decisions.filter(\.isOpen).count)")
                     }
-                    if day.notToday != nil { row(.notToday, L.notToday.text, "moon.zzz", nil) }
+                    if !day.notToday.isEmpty { row(.notToday, L.notToday.text, "moon.zzz", "\(day.notToday.count)") }
                 }
                 Section(L.map.text) {
                     ForEach(day.sections) { section in
-                        row(.section(section.title), stripIcon(section.title), symbol(for: section.title),
-                            "\(section.items.filter(\.isOpen).count)")
+                        let isTimeline = section.title.hasPrefix("🧭")
+                        row(.section(section.title), isTimeline ? L.timeline.text : stripIcon(section.title),
+                            symbol(for: section.title),
+                            isTimeline ? "\(section.items.count)" : "\(section.items.filter(\.isOpen).count)")
                     }
                 }
             }
@@ -101,10 +106,13 @@ struct MainWindow: View {
             list(L.parallel.text, day.parallel)
         case .decisions:
             list(L.decisions.text, day.decisions)
+        case .matrix:
+            MatrixView(matrix: day.matrix)
         case .notToday:
-            text(L.notToday.text, day.notToday ?? "")
+            list(L.notToday.text, day.notToday)
         case .section(let title):
-            list(title, day.sections.first(where: { $0.title == title })?.items ?? [])
+            let items = day.sections.first(where: { $0.title == title })?.items ?? []
+            if title.hasPrefix("🧭") { TimelineView(events: items.compactMap(Event.init)) } else { list(title, items) }
         }
     }
 
@@ -119,16 +127,6 @@ struct MainWindow: View {
         }
     }
 
-    private func text(_ title: String, _ body: String) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(title).font(.system(size: 24, weight: .bold, design: .rounded))
-                Text(body).font(.body).lineSpacing(3).foregroundStyle(.secondary)
-            }
-            .padding(24)
-            .frame(maxWidth: 820, alignment: .leading)
-        }
-    }
 
     @ViewBuilder private var failure: some View {
         if let failure = store.failure {
@@ -136,6 +134,98 @@ struct MainWindow: View {
                 .font(.caption).padding(10)
                 .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
                 .padding(12)
+        }
+    }
+}
+
+struct MatrixView: View {
+    @EnvironmentObject private var settings: AppSettings
+    let matrix: Matrix?
+
+    private let tones: [String: Color] = ["Q1": .red, "Q2": .purple, "Q3": .orange, "Q4": .gray]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(L.matrix.text).font(.system(size: 24, weight: .bold, design: .rounded))
+                if let split = matrix?.split { Text(split).font(.callout.monospacedDigit()).foregroundStyle(.secondary) }
+                Grid(horizontalSpacing: 14, verticalSpacing: 14) {
+                    let q = matrix?.quadrants ?? []
+                    ForEach(Array(stride(from: 0, to: q.count, by: 2)), id: \.self) { i in
+                        GridRow {
+                            quadrant(q[i])
+                            if i + 1 < q.count { quadrant(q[i + 1]) } else { Color.clear }
+                        }
+                    }
+                }
+            }
+            .padding(24)
+        }
+    }
+
+    private func quadrant(_ q: Quadrant) -> some View {
+        let tone = tones[q.id] ?? .secondary
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(q.id).font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(tone)
+                Text(q.title.capitalized).font(.headline)
+                Spacer()
+                Text(q.axis).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            ForEach(q.items) { ItemRow(item: $0) }
+        }
+        .padding(.vertical, 12).padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(tone.opacity(q.id == "Q2" ? 0.10 : 0.05), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(tone.opacity(0.25)))
+    }
+}
+
+struct TimelineView: View {
+    @EnvironmentObject private var settings: AppSettings
+    let events: [Event]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(L.timeline.text).font(.system(size: 24, weight: .bold, design: .rounded)).padding(.bottom, 16)
+                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(event.time)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, alignment: .trailing)
+                            .padding(.top, 5)
+                        VStack(spacing: 0) {
+                            Image(systemName: event.symbol)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(color(event)))
+                            if index < events.count - 1 {
+                                Rectangle().fill(Color.secondary.opacity(0.2)).frame(width: 2).frame(maxHeight: .infinity)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            ItemRow(item: Item(text: event.text, md: event.item.md, status: "open", size: nil, tags: [],
+                                               links: event.item.links, issue: event.item.issue, pr: event.item.pr),
+                                    showActions: false, showStatus: false)
+                        }
+                        .padding(.bottom, 10)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 820, alignment: .leading)
+        }
+    }
+
+    private func color(_ event: Event) -> Color {
+        switch event.mark {
+        case "❌": .red
+        case "↔", "↔️": .blue
+        default: .green
         }
     }
 }
