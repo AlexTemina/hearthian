@@ -14,6 +14,7 @@ enum Orca {
         let linkedLinearIssue: String?
         let linkedPR: Int?
         let isUnread: Bool?
+        let workspaceStatus: String?
         let comment: String?
     }
 

@@ -94,9 +94,9 @@ struct ItemRow: View {
                     }
                     .strikethrough(!item.isOpen, color: .secondary.opacity(0.6))
                     .foregroundStyle(item.isOpen ? .primary : .secondary)
-                    if item.size != nil || !item.tags.isEmpty || monitor.status(for: item) != nil {
+                    if item.size != nil || !item.tags.isEmpty || agentStatus != nil {
                         HStack(spacing: 4) {
-                            if let status = monitor.status(for: item) { AgentPill(status: status) }
+                            if let status = agentStatus { AgentPill(status: status) }
                             if let size = item.size { Chip(text: size, strong: true) }
                             ForEach(item.tags, id: \.self) { Chip(text: $0) }
                         }
@@ -137,6 +137,9 @@ struct ItemRow: View {
             Button(L.copyLine.text) { Actions.copy(item) }
         }
     }
+
+    /// A finished item's agent no longer matters.
+    private var agentStatus: AgentStatus? { item.isOpen ? monitor.status(for: item) : nil }
 
     private func toggle(_ mode: ComposerMode) {
         if composer == mode { composer = nil; return }

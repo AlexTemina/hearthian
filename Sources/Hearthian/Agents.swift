@@ -73,7 +73,22 @@ final class AgentMonitor: ObservableObject {
                 case .failure(let error):
                     self.error = error.localizedDescription
                 }
+                self.writeDiagnostics()
             }
+        }
+    }
+
+    /// agents.json next to today.json: what the monitor saw on its last poll, for debugging.
+    private func writeDiagnostics() {
+        let rows = worktrees.compactMap { w -> [String: Any]? in
+            guard let s = byWorktree[w.id], s.state != .none else { return nil }
+            return ["worktree": w.displayName, "state": s.state.rawValue, "agents": s.agents, "working": s.working,
+                    "unread": w.isUnread ?? false, "title": s.title ?? ""]
+        }
+        let out: [String: Any] = ["at": ISO8601DateFormatter().string(from: .now), "error": error ?? NSNull(),
+                                  "worktrees": worktrees.count, "agents": rows]
+        if let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: Paths.folder.appendingPathComponent("agents.json"))
         }
     }
 
@@ -82,7 +97,8 @@ final class AgentMonitor: ObservableObject {
         var out: [String: AgentStatus] = [:]
         for w in worktrees {
             let agents = terminals.filter { $0.worktreeId == w.id && $0.connected && isAgent($0) }
-            guard !agents.isEmpty else {
+            // A worktree marked completed on Orca's board is finished work: its agents do not count.
+            guard !agents.isEmpty, w.workspaceStatus != "completed" else {
                 out[w.id] = AgentStatus(state: .none, agents: 0, working: 0, lastOutput: nil, title: nil)
                 continue
             }
