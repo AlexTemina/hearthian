@@ -35,7 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Task { @MainActor in SlackWindows.shared.start() }
+        Task { @MainActor in
+            SlackWindows.shared.start()
+            AgentMonitor.shared.start()
+        }
     }
 }
 

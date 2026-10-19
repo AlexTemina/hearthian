@@ -18,7 +18,7 @@ enum L: String {
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
     case slackWindows, windowsEnabled, windowLength, minutesUnit, weekdayTimes, timesHelp, openSlackAtStart, quitSlackAtEnd, setSlackStatus, slackToken, slackTokenHelp, statusTexts, windowStarts, windowStartsBody, windowEnds, windowEndsBody, lastWindowBody, extendWindow, skipWindow, startWindowNow, endWindowNow, windowOpenUntil, nextWindow, general, monday, tuesday, wednesday, thursday, friday, saturday, sunday, saved
-    case reload, updatedAt
+    case reload, updatedAt, agents, agentThinking, agentNeedsYou, agentStuck, agentIdle
     case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
     private static let table: [L: (en: String, es: String)] = [
@@ -56,6 +56,11 @@ enum L: String {
         .next: ("Next", "Ahora"),
         .map: ("Map", "Mapa"),
         .reload: ("Reload", "Recargar"),
+        .agents: ("Agents", "Agentes"),
+        .agentThinking: ("thinking", "pensando"),
+        .agentNeedsYou: ("needs you", "te espera"),
+        .agentStuck: ("stuck?", "¿colgado?"),
+        .agentIdle: ("idle", "en reposo"),
         .updatedAt: ("Updated at", "Actualizado a las"),
         .slackWindows: ("Slack windows", "Ventanas de Slack"),
         .windowsEnabled: ("Open Slack only in windows", "Abrir Slack solo en ventanas"),

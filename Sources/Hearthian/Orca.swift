@@ -13,6 +13,8 @@ enum Orca {
         let isArchived: Bool
         let linkedLinearIssue: String?
         let linkedPR: Int?
+        let isUnread: Bool?
+        let comment: String?
     }
 
     struct Terminal: Decodable {
@@ -20,6 +22,8 @@ enum Orca {
         let worktreeId: String
         let connected: Bool
         let title: String?
+        let agentIdentity: String?
+        let lastOutputAt: Double?
     }
 
     enum Failure: LocalizedError {

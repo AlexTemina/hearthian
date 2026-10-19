@@ -2,12 +2,13 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: Hashable {
-    case today, matrix, parallel, decisions, notToday
+    case today, matrix, parallel, decisions, notToday, agents
     case section(String)
 }
 
 struct MainWindow: View {
     @ObservedObject var store: Store
+    @ObservedObject private var monitor = AgentMonitor.shared
     @EnvironmentObject private var settings: AppSettings
     @State private var page: Page? = .today
 
@@ -50,6 +51,9 @@ struct MainWindow: View {
                     }
                     if !day.notToday.isEmpty { row(.notToday, L.notToday.text, "moon.zzz", "\(day.notToday.count)") }
                 }
+                Section(L.agents.text) {
+                    row(.agents, L.agents.text, "cpu", agentBadge)
+                }
                 Section(L.map.text) {
                     ForEach(day.sections) { section in
                         let isTimeline = section.title.hasPrefix("🧭")
@@ -75,6 +79,11 @@ struct MainWindow: View {
                 .padding(12)
             }
         }
+    }
+
+    private var agentBadge: String? {
+        let waiting = AgentMonitor.shared.byWorktree.values.filter { $0.state == .needsYou }.count
+        return waiting > 0 ? "\(waiting)" : nil
     }
 
     private func row(_ value: Page, _ title: String, _ icon: String, _ badge: String?) -> some View {
@@ -116,6 +125,8 @@ struct MainWindow: View {
             list(L.decisions.text, day.decisions)
         case .matrix:
             MatrixView(matrix: day.matrix)
+        case .agents:
+            AgentsView(monitor: AgentMonitor.shared)
         case .notToday:
             list(L.notToday.text, day.notToday)
         case .section(let title):
