@@ -196,13 +196,15 @@ struct ItemRow: View {
 
 struct Card<Content: View>: View {
     let title: String?
+    var icon: String? = nil
     var trailing: String? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let title {
-                HStack {
+                HStack(spacing: 6) {
+                    if let icon { Image(systemName: icon).font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary) }
                     Text(title.uppercased()).font(.system(size: 11, weight: .bold)).tracking(0.6).foregroundStyle(.secondary)
                     Spacer()
                     if let trailing { Text(trailing).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
@@ -255,13 +257,13 @@ struct DayView: View {
                 header(day)
                 if let focus = day.focus { focusCard(focus) }
                 if !day.slots.isEmpty { slots(day) }
-                Card(title: L.queue.text, trailing: "\(day.progress.done)/\(day.progress.total)") {
+                Card(title: L.queue.text, icon: "circle.bottomhalf.filled", trailing: "\(day.progress.done)/\(day.progress.total)") {
                     ForEach(day.queue) { ItemRow(item: $0, isNext: $0 == day.next) }
                 }
                 if !day.parallel.isEmpty {
                     Card(title: L.parallel.text) { ForEach(day.parallel) { ItemRow(item: $0) } }
                 }
-                if let waiting = day.whileWaiting { note(L.whileWaiting.text, waiting) }
+                if let waiting = day.whileWaiting { note(L.whileWaiting.text, waiting, icon: "water.waves") }
                 if !compact {
                     if !day.decisions.isEmpty {
                         Card(title: L.decisions.text) { ForEach(day.decisions) { ItemRow(item: $0) } }
@@ -324,8 +326,8 @@ struct DayView: View {
         }
     }
 
-    private func note(_ title: String, _ text: String) -> some View {
-        Card(title: title) {
+    private func note(_ title: String, _ text: String, icon: String? = nil) -> some View {
+        Card(title: title, icon: icon) {
             Text(text).font(.callout).foregroundStyle(.secondary).lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 10)

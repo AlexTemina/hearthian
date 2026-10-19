@@ -23,10 +23,10 @@ enum L: String {
 
     private static let table: [L: (en: String, es: String)] = [
         .appTitle: ("Today", "Parte del día"),
-        .focus: ("THE ONE THING", "LA UNA"),
-        .queue: ("Queue", "Cola"),
+        .focus: ("TIMBER HEARTH · THE FROG", "TIMBER HEARTH · LA RANA"),
+        .queue: ("Brittle Hollow", "Brittle Hollow"),
         .parallel: ("Automatic agents", "Agentes automáticos"),
-        .whileWaiting: ("While you wait", "Mientras esperas"),
+        .whileWaiting: ("Giant's Deep · while agents work", "Giant's Deep · mientras trabajan los agentes"),
         .decisions: ("Decisions", "Decisiones"),
         .notToday: ("Not today", "Hoy no"),
         .openDay: ("Open day", "Abrir parte"),
