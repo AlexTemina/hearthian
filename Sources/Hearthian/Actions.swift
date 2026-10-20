@@ -19,23 +19,73 @@ enum Actions {
         Journey.shared.activate(item, in: store?.day)
     }
 
+    /// Links the item to a session by hand: one from the menu, or an id pasted from the clipboard.
+    static func link(_ item: Item, to session: String) {
+        let worktrees = AgentMonitor.shared.worktrees
+        guard let s = Session.readAll().first(where: { $0.id == session }),
+              let worktree = Session.owners([s], worktrees)[s.id] else { return store?.report(L.noSessionInClipboard.text) ?? () }
+        Links.set(item, session: s.id, worktree: worktree)
+    }
+
+    /// How a session reads in the menu: the agent's tab title, then its worktree.
+    static func label(of session: Session) -> String {
+        let monitor = AgentMonitor.shared
+        let worktree = Session.owners([session], monitor.worktrees)[session.id]
+            .flatMap { id in monitor.worktrees.first { $0.id == id }?.displayName } ?? session.cwd
+        guard let tab = Orca.terminal(of: session, in: monitor.terminals)?.title else {
+            return "\(worktree) · \(session.id.prefix(8))"
+        }
+        return "\(AgentMonitor.stripGlyph(tab)) — \(worktree)"
+    }
+
     static func copy(_ item: Item) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(item.md, forType: .string)
     }
 
-    /// Back to the item's live agent, else a new agent in its worktree, else in the fallback one.
+    /// 1. The item's linked Claude session: its terminal, or the conversation resumed if it closed.
+    /// 2. Else the live agent in the item's worktree (by issue or PR), which becomes the linked one.
+    /// 3. Else a new agent: in that worktree, or /start-task from the fallback one when there is an issue.
+    /// Agents launched here carry HEARTHIAN_ITEM, so the hook links them on the next poll.
     static func jump(_ item: Item) {
         activate(item)
         perform {
             let config = Config.load()
-            if let (worktree, terminal) = try Orca.agent(for: item) {
-                if let terminal { try Orca.focus(terminal) } else {
-                    try Orca.newAgent(prompt: config.fill(config.resumePrompt, item), in: worktree)
+            let key = item.linkKey
+            let worktrees = try Orca.worktrees()
+            let terminals = try Orca.terminals().filter(\.connected)
+            let sessions = Session.readAll()
+
+            if let link = Links.get(item) {
+                let session = sessions.first { $0.id == link.session }
+                if let s = session, s.alive {
+                    // Never resume a live session: that opens a second tab on the same conversation.
+                    if let t = Orca.terminal(of: s, in: terminals) ?? Orca.latestAgent(in: link.worktree, terminals) {
+                        return try Orca.focus(t)
+                    }
+                } else if let w = worktrees.first(where: { $0.id == link.worktree }) {
+                    return try Orca.resume(session: link.session, in: w, item: key)
+                } else {
+                    Links.forget(item)
                 }
-            } else {
-                try Orca.newAgent(prompt: config.fill(config.startPrompt, item), in: try Orca.fallback())
             }
+
+            guard let (worktree, _) = try Orca.agent(for: item) else {
+                // /start-task opens the issue's worktree with an agent of its own, linked to the issue: step 2 finds
+                // that one next time. Without an issue, the agent started here is the one, and HEARTHIAN_ITEM links it.
+                guard item.target != nil else { return try Orca.newAgent(prompt: item.text, in: try Orca.fallback(), item: key) }
+                return try Orca.newAgent(prompt: config.fill(config.startPrompt, item), in: try Orca.fallback())
+            }
+            let owner = Session.owners(sessions, worktrees)
+            let live = sessions.filter { owner[$0.id] == worktree.id && $0.alive }.sorted { $0.at > $1.at }
+            if let s = live.first(where: { Orca.terminal(of: $0, in: terminals) != nil }), let t = Orca.terminal(of: s, in: terminals) {
+                Links.set(item, session: s.id, worktree: worktree.id)
+                return try Orca.focus(t)
+            }
+            if let t = terminals.first(where: { $0.worktreeId == worktree.id && AgentMonitor.isAgent($0) }) {
+                return try Orca.focus(t)
+            }
+            try Orca.newAgent(prompt: config.fill(config.resumePrompt, item), in: worktree, item: key)
         }
     }
 
@@ -43,13 +93,17 @@ enum Actions {
     static func message(_ text: String, to item: Item) {
         activate(item)
         perform {
+            if let link = Links.get(item), let s = Session.readAll().first(where: { $0.id == link.session }), s.alive,
+               let t = Orca.terminal(of: s, in: try Orca.terminals()) {
+                return try Orca.send(text, to: t)
+            }
             if let (worktree, terminal) = try Orca.agent(for: item) {
                 if let terminal { try Orca.send(text, to: terminal) } else {
-                    try Orca.newAgent(prompt: text, in: worktree)
+                    try Orca.newAgent(prompt: text, in: worktree, item: item.linkKey)
                 }
             } else {
                 let config = Config.load()
-                try Orca.newAgent(prompt: "\(config.fill(config.startPrompt, item))\n\n\(text)", in: try Orca.fallback())
+                try Orca.newAgent(prompt: "\(config.fill(config.startPrompt, item))\n\n\(text)", in: try Orca.fallback(), item: item.linkKey)
             }
         }
     }
@@ -59,7 +113,7 @@ enum Actions {
         activate(item)
         perform {
             let worktree = try Orca.agent(for: item)?.0 ?? Orca.fallback()
-            try Orca.newAgent(prompt: prompt, in: worktree)
+            try Orca.newAgent(prompt: prompt, in: worktree, item: item.linkKey)
         }
     }
 

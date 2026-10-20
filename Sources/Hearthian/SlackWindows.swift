@@ -7,9 +7,12 @@ struct SlackSchedule: Codable, Equatable {
     var enabled = true
     var minutes = 20
     /// Times per weekday, 1 = Monday … 7 = Sunday, as "HH:mm".
-    var times: [Int: [String]] = [1: ["09:20", "12:40", "16:30"], 2: ["09:20", "12:40", "16:30"],
-                                  3: ["09:20", "12:40", "16:30"], 4: ["09:20", "12:40", "16:30"],
-                                  5: ["09:00", "12:00", "15:30"]]
+    /// Every hour and a half or so, the last one before the day ends.
+    var times: [Int: [String]] = [1: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
+                                  2: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
+                                  3: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
+                                  4: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
+                                  5: ["09:00", "10:30", "12:00", "13:30", "15:00"]]
     /// End of the working day, per weekday, for the status after the last window.
     var dayEnds: [Int: String] = [1: "17:00", 2: "17:00", 3: "17:00", 4: "17:00", 5: "16:00"]
     var openSlack = true
@@ -63,6 +66,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
             Task { @MainActor in self?.tick() }
         }
         tick()
+        syncStatus()
     }
 
     var isOpen: Bool { windowEndsAt.map { $0 > .now } ?? false }
@@ -139,9 +143,10 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         NSRunningApplication.runningApplications(withBundleIdentifier: "com.tinyspeck.slackmacgap").forEach { $0.terminate() }
     }
 
-    /// users.profile.set with the user's own token, kept in the Keychain. No token: no status.
+    /// users.profile.set with the user's own token when there is one in the Keychain, the Raycast Slack extension otherwise.
     private func status(_ text: String, _ emoji: String, until: Date?) {
-        guard schedule.setStatus, let token = Keychain.get("slack-user-token") else { return }
+        guard schedule.setStatus else { return }
+        guard let token = Keychain.get("slack-user-token") else { return raycastStatus(text, emoji, until: until) }
         var request = URLRequest(url: URL(string: "https://slack.com/api/users.profile.set")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -154,6 +159,39 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
             let problem = error?.localizedDescription ?? ((reply?["ok"] as? Bool) == true ? nil : reply?["error"] as? String)
             Task { @MainActor in self.lastError = problem.map { "Slack: \($0)" } }
         }.resume()
+    }
+
+    /// The Raycast Slack extension (mommertf/slack) sets the status with the user's own session: no Slack app to approve.
+    private func raycastStatus(_ text: String, _ emoji: String, until: Date?) {
+        let minutes = until.map { max(1, Int(($0.timeIntervalSinceNow / 60).rounded(.up))) } ?? 0
+        let args = ["statusText": text, "emoji": emoji, "expiration": "\(minutes)"]
+        guard let json = try? JSONSerialization.data(withJSONObject: args), let value = String(data: json, encoding: .utf8),
+              var url = URLComponents(string: "raycast://extensions/mommertf/slack/set-status") else { return }
+        url.queryItems = [URLQueryItem(name: "arguments", value: value)]
+        guard let link = url.url, NSWorkspace.shared.urlForApplication(toOpen: link) != nil else {
+            lastError = "Slack: no token and no Raycast to set the status"
+            return
+        }
+        NSWorkspace.shared.open(link)
+    }
+
+    /// On launch, the status the schedule says it should have now, so a restart between windows does not leave it stale.
+    private func syncStatus() {
+        guard schedule.enabled else { return }
+        let weekday = SlackSchedule.weekday()
+        let times = (schedule.times[weekday] ?? []).sorted()
+        let now = Self.hm(.now)
+        guard let first = times.first, now >= first else { return }
+        let inWindow = times.contains { t in
+            guard let start = Self.date(t) else { return false }
+            return Date.now >= start && Date.now < start.addingTimeInterval(TimeInterval(schedule.minutes * 60))
+        }
+        guard !inWindow else { return }
+        if let next {
+            status(schedule.focusStatus.replacingOccurrences(of: "{next}", with: next), schedule.focusEmoji, until: Self.date(next))
+        } else if let end = schedule.dayEnds[weekday], now < end {
+            status(schedule.offStatus, schedule.offEmoji, until: Self.date(end))
+        }
     }
 
     // MARK: Notifications

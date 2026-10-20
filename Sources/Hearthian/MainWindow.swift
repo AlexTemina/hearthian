@@ -104,7 +104,7 @@ struct MainWindow: View {
             }
             Spacer()
             if let state, state != .none, state != .idle {
-                Circle().fill(dot(state)).frame(width: 8, height: 8)
+                StatusDot(color: dot(state), size: 9)
             }
             if planet != .timberHearth { Text("\(open)").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
         }
@@ -237,8 +237,7 @@ struct MatrixView: View {
         }
         .padding(.vertical, 12).padding(.horizontal, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(tone.opacity(q.id == "Q2" ? 0.10 : 0.05), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(tone.opacity(0.25)))
+        .tonalCard(tone, strong: q.id == "Q2")
     }
 }
 
@@ -262,7 +261,7 @@ struct TimelineView: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .frame(width: 28, height: 28)
-                                .background(Circle().fill(color(event)))
+                                .background(StatusDot(color: color(event), size: 28))
                             if index < events.count - 1 {
                                 Rectangle().fill(Color.secondary.opacity(0.2)).frame(width: 2).frame(maxHeight: .infinity)
                             }

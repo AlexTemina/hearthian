@@ -25,6 +25,10 @@ enum Orca {
         let title: String?
         let agentIdentity: String?
         let lastOutputAt: Double?
+        let tabId: String?
+        let leafId: String?
+
+        var paneKey: String? { tabId.flatMap { tab in leafId.map { "\(tab):\($0)" } } }
     }
 
     enum Failure: LocalizedError {
@@ -118,15 +122,38 @@ enum Orca {
         try run(["terminal", "send", "--terminal", terminal.handle, "--text", text, "--enter", "--json"])
     }
 
-    static func newAgent(prompt: String, in worktree: Worktree) throws {
+    /// A new Claude in the worktree. HEARTHIAN_ITEM rides along so the hook reports which item the session is for.
+    static func newAgent(prompt: String, in worktree: Worktree, item: String? = nil) throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hearthian-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("prompt.txt")
         try prompt.write(to: file, atomically: true, encoding: .utf8)
         let mode = Config.load().permissionMode
-        let command = "claude --permission-mode \(mode) \"$(cat '\(file.path)')\"; rm -rf '\(dir.path)'"
+        let env = item.map { "HEARTHIAN_ITEM='\($0)' " } ?? ""
+        try launch("\(env)claude --permission-mode \(mode) \"$(cat '\(file.path)')\"; rm -rf '\(dir.path)'", in: worktree)
+    }
+
+    /// Brings back a closed Claude conversation in its worktree.
+    static func resume(session: String, in worktree: Worktree, item: String) throws {
+        let mode = Config.load().permissionMode
+        try launch("HEARTHIAN_ITEM='\(item)' claude --permission-mode \(mode) --resume \(session)", in: worktree)
+    }
+
+    private static func launch(_ command: String, in worktree: Worktree) throws {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Orca.app"))
         try run(["terminal", "create", "--worktree", "id:\(worktree.id)", "--command", command, "--focus", "--json"])
+    }
+
+    /// The agent tab of a worktree that spoke last.
+    static func latestAgent(in worktree: String, _ terminals: [Terminal]) -> Terminal? {
+        terminals.filter { $0.worktreeId == worktree && $0.connected && AgentMonitor.isAgent($0) }
+            .max { ($0.lastOutputAt ?? 0) < ($1.lastOutputAt ?? 0) }
+    }
+
+    /// The Orca terminal a reported session runs in.
+    static func terminal(of session: Session, in terminals: [Terminal]) -> Terminal? {
+        guard let pane = session.paneKey, !pane.isEmpty else { return nil }
+        return terminals.first { $0.connected && $0.paneKey == pane }
     }
 
     /// Where an item without a worktree of its own gets started.

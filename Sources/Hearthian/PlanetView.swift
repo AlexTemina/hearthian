@@ -36,7 +36,7 @@ struct PlanetView: View {
                 .font(.system(size: compact ? 20 : 26, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: compact ? 42 : 54, height: compact ? 42 : 54)
-                .background(Circle().fill(planet.tone.gradient))
+                .background(StatusDot(color: planet.tone, size: compact ? 42 : 54))
             VStack(alignment: .leading, spacing: 2) {
                 Text(planet.name).font(.system(size: compact ? 20 : 26, weight: .bold, design: .rounded))
                 Text(planet.role).font(.callout).foregroundStyle(.secondary)
@@ -66,10 +66,7 @@ struct PlanetView: View {
                 Label(L.layerDone.text, systemImage: "checkmark.seal.fill").foregroundStyle(.green).font(.headline)
             }
             if !compact {
-                rail(journey.railOrder(planet, day) { item in
-                    guard let state = monitor.status(for: item)?.state else { return false }
-                    return state == .thinking || state == .needsYou || state == .stuck
-                }, active: journey.activeItem(planet, day))
+                rail(list, active: journey.activeItem(planet, day))
             }
         }
     }
@@ -84,10 +81,10 @@ struct PlanetView: View {
                         Button { journey.promote(next) } label: {
                             Label("\(L.promoteNext.text): \(next.heading)", systemImage: "arrow.up.circle.fill")
                         }
-                        .buttonStyle(.borderedProminent).tint(Planet.timberHearth.tone)
+                        .buttonStyle(FilledButtonStyle(tint: Planet.timberHearth.tone))
                     }
                     .padding(14)
-                    .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    .tonalCard(.green, radius: 12)
                 }
             }
             if !day.slots.isEmpty {
@@ -95,7 +92,7 @@ struct PlanetView: View {
                     ForEach(day.slots) { slot in
                         Label("\(slot.time) \(slot.title)", systemImage: "clock").font(.caption)
                             .padding(.horizontal, 9).padding(.vertical, 5)
-                            .background(Color.secondary.opacity(0.1), in: Capsule())
+                            .tonalChip()
                     }
                 }
             }
@@ -109,31 +106,17 @@ struct PlanetView: View {
             ItemRow(item: item)
         }
         .padding(.vertical, 10).padding(.horizontal, 6)
-        .background(strong ? planet.tone.opacity(0.09) : Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(strong ? planet.tone.opacity(0.3) : .clear))
+        .tonalCard(strong ? planet.tone : nil, strong: strong)
     }
 
-    /// The metro line: one stop per item, filled when done, the active one marked.
+    /// Every item in its priority order, a green ball once it is done, the active one marked.
     private func rail(_ list: [Item], active: Item?) -> some View {
         Card(title: L.everything.text, trailing: "\(list.filter { !$0.isOpen }.count)/\(list.count)") {
-            ForEach(Array(list.enumerated()), id: \.element.id) { index, item in
+            ForEach(list) { item in
                 HStack(alignment: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        Circle()
-                            .fill(item.isOpen ? (item.md == active?.md ? planet.tone : Color.clear) : Color.green)
-                            .overlay(Circle().stroke(item.isOpen ? (item.md == active?.md ? planet.tone : Color.secondary.opacity(0.4)) : .green, lineWidth: 2))
-                            .frame(width: 12, height: 12)
-                            .padding(.top, 13)
-                        if index < list.count - 1 {
-                            // The segment below a stop is green while the next stop is also passed.
-                            let passed = !item.isOpen && !list[index + 1].isOpen
-                            let leadsToActive = !item.isOpen && list[index + 1].md == active?.md
-                            Rectangle()
-                                .fill(passed ? Color.green.opacity(0.7) : leadsToActive ? planet.tone.opacity(0.7) : Color.secondary.opacity(0.2))
-                                .frame(width: 3).frame(maxHeight: .infinity)
-                        }
-                    }
-                    .frame(width: 22)
+                    StatusDot(color: ballColor(item), filled: !item.isOpen || item.md == active?.md, check: item.status == "done", size: 16)
+                        .padding(.top, 11)
+                        .frame(width: 22)
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 6) {
                             if let badge = kindBadge(item) { badge }
@@ -145,11 +128,27 @@ struct PlanetView: View {
                         ItemRow(item: item, showStatus: false)
                     }
                     if item.isOpen && item.md != active?.md {
-                        Button { Actions.activate(item) } label: { Image(systemName: "scope") }
-                            .buttonStyle(.plain).foregroundStyle(.secondary).help(L.makeActive.text).padding(.top, 10)
+                        Button { Actions.activate(item) } label: {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .offset(x: 1)
+                                .frame(width: 26, height: 26)
+                                .background(FilledSurface(tint: planet.tone))
+                        }
+                        .buttonStyle(.plain).help(L.makeActive.text).padding(.top, 8)
                     }
                 }
             }
+        }
+    }
+
+    private func ballColor(_ item: Item) -> Color {
+        switch item.status {
+        case "done": .green
+        case "dropped": .red
+        case "open": planet.tone
+        default: .orange
         }
     }
 
@@ -183,7 +182,7 @@ struct PlanetView: View {
             }
             .padding(12)
             .foregroundStyle(.white)
-            .background(up.tone.gradient, in: RoundedRectangle(cornerRadius: 12))
+            .background(FilledSurface(tint: up.tone, radius: 12))
         }
         .buttonStyle(.plain)
     }
@@ -208,7 +207,7 @@ struct PlanetView: View {
                     Button { journey.descend(from: planet) } label: {
                         Label("\(L.descendTo.text) \(below.name)", systemImage: "arrow.down.to.line")
                     }
-                    .buttonStyle(.borderedProminent).tint(below.tone)
+                    .buttonStyle(FilledButtonStyle(tint: below.tone))
                     .disabled(!canDescend(day))
                 }
             }

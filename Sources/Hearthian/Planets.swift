@@ -126,19 +126,6 @@ final class Journey: ObservableObject {
 
     func isStarted(_ item: Item) -> Bool { started.contains(item.md) }
 
-    /// The metro line: stations already passed (done), then where you are (the active one and
-    /// whatever you already started), then what is still ahead, in its priority order.
-    func railOrder(_ planet: Planet, _ day: Day, hasAgent: (Item) -> Bool) -> [Item] {
-        let list = items(planet, day)
-        let active = activeItem(planet, day)
-        let done = list.filter { !$0.isOpen }
-        let open = list.filter(\.isOpen)
-        let current = open.filter { $0.md == active?.md }
-        let underway = open.filter { $0.md != active?.md && (started.contains($0.md) || hasAgent($0)) }
-        let ahead = open.filter { item in !current.contains(item) && !underway.contains(item) }
-        return done + current + underway + ahead
-    }
-
     /// The frog is done: the chosen Brittle Hollow item becomes the frog.
     func promote(_ item: Item) {
         frogOverride = item.md

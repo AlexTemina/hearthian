@@ -9,10 +9,11 @@ struct StatusMark: View {
     var body: some View {
         Group {
             if isNext {
-                Circle().fill(Color.accentColor)
-                    .frame(width: 10, height: 10)
-                    .padding(3)
-                    .background(Circle().fill(Color.accentColor.opacity(0.22)))
+                StatusDot(color: .accentColor, size: 14)
+            } else if item.status == "done" {
+                StatusDot(color: .green, check: true, size: 15)
+            } else if item.status == "open" {
+                StatusDot(color: .secondary, filled: false, size: 14)
             } else {
                 Image(systemName: symbol).foregroundStyle(color)
             }
@@ -49,7 +50,7 @@ struct Chip: View {
         Text(text)
             .font(.system(size: 10.5, weight: .semibold, design: .rounded))
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(strong ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.12), in: Capsule())
+            .tonalChip(strong ? .accentColor : nil)
             .foregroundStyle(strong ? Color.accentColor : .secondary)
     }
 }
@@ -130,6 +131,19 @@ struct ItemRow: View {
             Button(L.makeActive.text) { Actions.activate(item) }
             Button(L.messageAgent.text) { toggle(.message) }
             Button(L.newAgent.text) { toggle(.newAgent) }
+            Menu(L.setSession.text) {
+                let linked = Links.get(item)?.session
+                ForEach(monitor.sessions.filter(\.alive).sorted { $0.at > $1.at }, id: \.id) { session in
+                    Button(Actions.label(of: session) + (session.id == linked ? " · \(L.linkedSession.text)" : "")) {
+                        Actions.link(item, to: session.id)
+                    }
+                }
+                Divider()
+                Button(L.sessionFromClipboard.text) {
+                    Actions.link(item, to: NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+                }
+                if linked != nil { Button(L.forgetSession.text) { Links.forget(item) } }
+            }
             Divider()
             ForEach(item.links, id: \.self) { link in
                 Button("\(L.openLink.text) \(link.title)") { Actions.open(link) }
@@ -185,7 +199,7 @@ struct ItemRow: View {
                 Button(L.cancel.text) { composer = nil }.keyboardShortcut(.cancelAction)
                 Button(L.send.text) { submit(mode) }
                     .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(FilledButtonStyle())
             }
             .controlSize(.small)
         }
@@ -215,8 +229,7 @@ struct Card<Content: View>: View {
             content()
         }
         .padding(.vertical, 12).padding(.horizontal, 6)
-        .background(.background.secondary.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.secondary.opacity(0.12)))
+        .tonalCard()
     }
 }
 
@@ -306,10 +319,7 @@ struct DayView: View {
             ItemRow(item: item)
         }
         .padding(.vertical, 12).padding(.horizontal, 6)
-        .background(
-            LinearGradient(colors: [.orange.opacity(0.14), .accentColor.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.25)))
+        .tonalCard(.orange, strong: true)
     }
 
     private func slots(_ day: Day) -> some View {
@@ -321,7 +331,7 @@ struct DayView: View {
                     Text(slot.title).font(.caption).lineLimit(1)
                 }
                 .padding(.horizontal, 9).padding(.vertical, 5)
-                .background(Color.secondary.opacity(0.1), in: Capsule())
+                .tonalChip()
                 .help(slot.text)
             }
         }
