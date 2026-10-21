@@ -26,7 +26,7 @@ final class LinearStates: ObservableObject {
 
     func poll() {
         guard !polling, let day = Self.today() else { return }
-        let issues = Array(Set(day.allItems.compactMap(\.issue)))
+        let issues = Array(Set(day.allItems.compactMap(\.issue) + (day.contract?.tres.flatMap(\.issues) ?? [])))
         guard !issues.isEmpty else { return }
         polling = true
         DispatchQueue.global(qos: .utility).async {
@@ -45,6 +45,11 @@ final class LinearStates: ObservableObject {
                 Actions.store?.load(force: true)
             }
         }
+    }
+
+    /// A goal of the week is met when every issue it names is closed in Linear.
+    func done(_ goal: Contract.Goal) -> Bool {
+        goal.done || (!goal.issues.isEmpty && goal.issues.allSatisfy { ["completed", "canceled"].contains(byIssue[$0]?.type ?? "") })
     }
 
     /// Linear's verdict on a line that the Daily leaves open: done when the issue is completed, dropped when cancelled.

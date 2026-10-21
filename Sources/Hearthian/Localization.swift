@@ -19,7 +19,7 @@ enum L: String {
     case orcaFailed, noWorktree, language, systemLanguage, english, spanish
     case slackWindows, windowsEnabled, windowLength, minutesUnit, weekdayTimes, timesHelp, openSlackAtStart, quitSlackAtEnd, setSlackStatus, slackToken, slackTokenHelp, statusTexts, windowStarts, windowStartsBody, windowEnds, windowEndsBody, lastWindowBody, extendWindow, skipWindow, startWindowNow, endWindowNow, windowOpenUntil, nextWindow, general, monday, tuesday, wednesday, thursday, friday, saturday, sunday, saved
     case underway, roleFrog, roleWhileFrog, roleLight, descendTo, ascendTo, descendLocked, descendAnyway, whyDescend, waitingAbove, frogDone, promoteNext, activeNow, nextUp, everything, makeActive, kindDecision, kindAuto, kindLight, showAllPlanets, nothingHere, layerDone, backToFrog
-    case setSession, sessionFromClipboard, forgetSession, linkedSession, noSessionInClipboard
+    case week, contractUnconfirmed, setSession, sessionFromClipboard, forgetSession, linkedSession, noSessionInClipboard
     case reload, updatedAt, agents, agentThinking, agentNeedsYou, agentStuck, agentIdle
     case updated, next, matrix, timeline, map, launchAtLogin, openAtLoginHelp
 
@@ -74,6 +74,8 @@ enum L: String {
         .nextUp: ("Next", "Siguiente"),
         .everything: ("All", "Todas"),
         .makeActive: ("Work on this one", "Me pongo con esta"),
+        .week: ("This week", "La semana"),
+        .contractUnconfirmed: ("Not confirmed yet: confirm it before the morning reads it", "Sin confirmar: confírmalo antes de que lo lea el morning"),
         .setSession: ("Set session", "Asociar sesión"),
         .sessionFromClipboard: ("Session id from the clipboard", "Session id del portapapeles"),
         .forgetSession: ("Forget the session", "Olvidar la sesión"),

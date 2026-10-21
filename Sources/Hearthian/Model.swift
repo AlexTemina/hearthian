@@ -125,6 +125,7 @@ struct Day: Codable {
     let sections: [DaySection]
     let matrix: Matrix?
     let layers: Layers?
+    let contract: Contract?
     let progress: Progress
 
     var next: Item? { queue.first(where: \.isOpen) }
@@ -138,4 +139,30 @@ struct Layers: Codable {
     let timberHearth: [Item]
     let brittleHollow: [Item]
     let giantsDeep: [Item]
+}
+
+
+/// The week's contract (Alan week, Wednesday to Tuesday): Las Tres and how each day served them.
+struct Contract: Codable {
+    struct Goal: Codable, Identifiable {
+        var id: Int { n }
+        let n: Int
+        let text: String
+        let links: [Link]
+        let issues: [String]
+        let done: Bool
+    }
+    struct DayRow: Codable, Identifiable {
+        var id: String { day }
+        let day: String
+        let una: String?
+        let serves: String?
+        let outcome: String?
+        let parallels: String?
+    }
+    let date: String
+    let title: String?
+    let confirmed: Bool
+    let tres: [Goal]
+    let days: [DayRow]
 }

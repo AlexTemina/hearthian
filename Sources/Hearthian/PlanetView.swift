@@ -73,6 +73,7 @@ struct PlanetView: View {
 
     private func frog(_ day: Day) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let contract = day.contract { ContractCard(contract: contract) }
             if let frog = journey.frog(day) {
                 spotlight(L.activeNow.text, frog, strong: true)
                 if !frog.isOpen, let next = journey.items(.brittleHollow, day).first(where: \.isOpen) {
@@ -230,5 +231,49 @@ struct PlanetView: View {
             }
         }
         .padding(.top, 6)
+    }
+}
+
+/// The week at a glance: Las Tres with their Linear state, and what each day of the Alan week delivered.
+struct ContractCard: View {
+    @ObservedObject private var linear = LinearStates.shared
+    let contract: Contract
+
+    var body: some View {
+        Card(title: L.week.text, icon: "calendar", trailing: "\(contract.tres.filter(linear.done).count)/\(contract.tres.count)") {
+            if !contract.confirmed {
+                Label(L.contractUnconfirmed.text, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.orange).padding(.horizontal, 10)
+            }
+            ForEach(contract.tres) { goal in
+                HStack(alignment: .top, spacing: 10) {
+                    StatusDot(color: linear.done(goal) ? .green : Planet.timberHearth.tone, filled: linear.done(goal),
+                              check: linear.done(goal), size: 15)
+                        .padding(.top, 2)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(goal.n). \(goal.text)").font(.callout).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 6) {
+                            ForEach(goal.links, id: \.self) { link in
+                                Button(link.title.components(separatedBy: " — ").first ?? link.title) { Actions.open(link) }
+                                    .buttonStyle(.plain).font(.caption2.weight(.semibold)).tonalChip()
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 3)
+            }
+            HStack(spacing: 6) {
+                ForEach(contract.days) { row in
+                    VStack(spacing: 2) {
+                        Text(row.day).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(row.outcome ?? "·").font(.caption)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 4)
+                    .tonalChip(row.outcome == "✅" ? .green : row.outcome == "❌" ? .red : nil)
+                    .help([row.una, row.parallels].compactMap { $0 }.joined(separator: "\n"))
+                }
+            }
+            .padding(.horizontal, 10).padding(.top, 4)
+        }
     }
 }
