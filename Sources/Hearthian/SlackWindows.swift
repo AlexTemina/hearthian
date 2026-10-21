@@ -7,16 +7,16 @@ struct SlackSchedule: Codable, Equatable {
     var enabled = true
     var minutes = 20
     /// Times per weekday, 1 = Monday … 7 = Sunday, as "HH:mm".
-    /// Every hour and a half or so, the last one before the day ends.
-    var times: [Int: [String]] = [1: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
-                                  2: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
-                                  3: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
-                                  4: ["09:20", "10:50", "12:20", "13:50", "15:20", "16:40"],
-                                  5: ["09:00", "10:30", "12:00", "13:30", "15:00"]]
+    /// Every two hours or so; Monday to Thursday the third one waits for lunch to end.
+    var times: [Int: [String]] = [1: ["09:20", "11:20", "13:40", "15:40"], 2: ["09:20", "11:20", "13:40", "15:40"],
+                                  3: ["09:20", "11:20", "13:40", "15:40"], 4: ["09:20", "11:20", "13:40", "15:40"],
+                                  5: ["09:00", "11:00", "13:00", "15:00"]]
     /// End of the working day, per weekday, for the status after the last window.
     var dayEnds: [Int: String] = [1: "17:00", 2: "17:00", 3: "17:00", 4: "17:00", 5: "16:00"]
     var openSlack = true
-    var quitSlack = true
+    var quitSlack = false
+    /// Between windows Slack stays open and macOS Focus silences it, through the Shortcuts below.
+    var focusBetweenWindows = true
     var setStatus = true
     var windowStatus = "Slack window, {minutes} min"
     var windowEmoji = ":window:"
@@ -93,6 +93,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         notify(L.windowStarts.text, L.windowStartsBody.text.replacingOccurrences(of: "{minutes}", with: "\(length)"),
                category: "window")
         if schedule.openSlack { open() }
+        focus(until: nil)
         status(schedule.windowStatus.replacingOccurrences(of: "{minutes}", with: "\(length)"), schedule.windowEmoji,
                until: windowEndsAt)
         scheduleEnd()
@@ -112,6 +113,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         if schedule.quitSlack { quit() }
         let weekday = SlackSchedule.weekday()
         if let next {
+            focus(until: Self.date(next))
             notify(L.windowEnds.text, L.windowEndsBody.text.replacingOccurrences(of: "{next}", with: next))
             status(schedule.focusStatus.replacingOccurrences(of: "{next}", with: next), schedule.focusEmoji,
                    until: Self.date(next))
@@ -161,6 +163,24 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         }.resume()
     }
 
+    /// macOS Focus between windows: "Hearthian Focus" gets the minutes until the next window, "Hearthian Focus Off"
+    /// ends it. Both are Shortcuts he creates once; without them Slack is left as it is and the error says so.
+    private func focus(until: Date?) {
+        guard schedule.focusBetweenWindows else { return }
+        let name = until == nil ? "Hearthian Focus Off" : "Hearthian Focus"
+        let minutes = until.map { max(1, Int(($0.timeIntervalSinceNow / 60).rounded(.up))) } ?? 0
+        DispatchQueue.global(qos: .utility).async {
+            let input = FileManager.default.temporaryDirectory.appendingPathComponent("hearthian-focus.txt")
+            try? "\(minutes)".write(to: input, atomically: true, encoding: .utf8)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+            process.arguments = ["run", name, "--input-path", input.path]
+            process.standardError = Pipe()
+            let ok = (try? process.run()) != nil && { process.waitUntilExit(); return process.terminationStatus == 0 }()
+            if !ok { Task { @MainActor in self.lastError = "Focus: no Shortcut \"\(name)\" in the Shortcuts app" } }
+        }
+    }
+
     /// The Raycast Slack extension (mommertf/slack) sets the status with the user's own session: no Slack app to approve.
     private func raycastStatus(_ text: String, _ emoji: String, until: Date?) {
         let minutes = until.map { max(1, Int(($0.timeIntervalSinceNow / 60).rounded(.up))) } ?? 0
@@ -188,6 +208,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         }
         guard !inWindow else { return }
         if let next {
+            focus(until: Self.date(next))
             status(schedule.focusStatus.replacingOccurrences(of: "{next}", with: next), schedule.focusEmoji, until: Self.date(next))
         } else if let end = schedule.dayEnds[weekday], now < end {
             status(schedule.offStatus, schedule.offEmoji, until: Self.date(end))
