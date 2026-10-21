@@ -22,8 +22,8 @@ struct SlackSchedule: Codable, Equatable {
     var windowEmoji = ":window:"
     var focusStatus = "Deep work, back at {next}. Huddle or call me if it cannot wait"
     var focusEmoji = ":fire:"
-    var offStatus = "Off for today, back tomorrow"
-    var offEmoji = ":wave:"
+    /// After the last window: still deep work, with no time to come back. He decides when the day ends; never "off".
+    var lastFocusStatus = "Deep work. Huddle or call me if it cannot wait"
 
     static let key = "slackSchedule"
 
@@ -118,8 +118,9 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
             status(schedule.focusStatus.replacingOccurrences(of: "{next}", with: next), schedule.focusEmoji,
                    until: Self.date(next))
         } else {
+            focus(until: schedule.dayEnds[weekday].flatMap { Self.date($0) })
             notify(L.windowEnds.text, L.lastWindowBody.text)
-            status(schedule.offStatus, schedule.offEmoji, until: schedule.dayEnds[weekday].flatMap { Self.date($0) })
+            status(schedule.lastFocusStatus, schedule.focusEmoji, until: nil)
         }
     }
 
@@ -210,8 +211,8 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         if let next {
             focus(until: Self.date(next))
             status(schedule.focusStatus.replacingOccurrences(of: "{next}", with: next), schedule.focusEmoji, until: Self.date(next))
-        } else if let end = schedule.dayEnds[weekday], now < end {
-            status(schedule.offStatus, schedule.offEmoji, until: Self.date(end))
+        } else {
+            status(schedule.lastFocusStatus, schedule.focusEmoji, until: nil)
         }
     }
 

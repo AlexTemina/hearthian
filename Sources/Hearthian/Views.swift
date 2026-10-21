@@ -505,7 +505,7 @@ struct SlackSettings: View {
             Section(L.statusTexts.text) {
                 statusRow($windows.schedule.windowEmoji, $windows.schedule.windowStatus)
                 statusRow($windows.schedule.focusEmoji, $windows.schedule.focusStatus)
-                statusRow($windows.schedule.offEmoji, $windows.schedule.offStatus)
+                statusRow($windows.schedule.focusEmoji, $windows.schedule.lastFocusStatus)
             }
         }
         .formStyle(.grouped)
