@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             SlackWindows.shared.start()
             AgentMonitor.shared.start()
+            LinearStates.shared.start()
         }
     }
 }

@@ -53,7 +53,7 @@ final class Store: ObservableObject {
         do {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
-            day = try decoder.decode(Day.self, from: data)
+            day = try decoder.decode(Day.self, from: Self.withLinear(data))
             lastData = data
             error = nil
             updated = .now
@@ -61,6 +61,30 @@ final class Store: ObservableObject {
             self.error = "\(Self.dayFile.lastPathComponent): \(error.localizedDescription)"
             report(self.error ?? "")
         }
+    }
+
+    /// Overlays Linear's state on every open line with an issue, before decoding: the Daily is the plan, Linear the state.
+    private static func withLinear(_ data: Data) -> Data {
+        guard var root = try? JSONSerialization.jsonObject(with: data) else { return data }
+        let states = LinearStates.shared
+        func walk(_ node: Any) -> Any {
+            if var dict = node as? [String: Any] {
+                if let issue = dict["issue"] as? String, dict["status"] as? String == "open",
+                   let status = MainActor.assumeIsolated({ states.status(of: issue) }) {
+                    dict["status"] = status
+                }
+                for (k, v) in dict { dict[k] = walk(v) }
+                return dict
+            }
+            if let list = node as? [Any] { return list.map(walk) }
+            return node
+        }
+        root = walk(root)
+        if var dict = root as? [String: Any], let queue = (dict["queue"] as? [[String: Any]]) {
+            dict["progress"] = ["done": queue.filter { $0["status"] as? String != "open" }.count, "total": queue.count]
+            root = dict
+        }
+        return (try? JSONSerialization.data(withJSONObject: root)) ?? data
     }
 
     func report(_ message: String) {

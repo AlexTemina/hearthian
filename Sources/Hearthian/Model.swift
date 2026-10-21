@@ -128,6 +128,9 @@ struct Day: Codable {
     let progress: Progress
 
     var next: Item? { queue.first(where: \.isOpen) }
+
+    /// Every task line of the day's plan, wherever it sits.
+    var allItems: [Item] { [focus].compactMap { $0 } + queue + parallel + decisions + notToday + sections.flatMap(\.items) }
 }
 
 
