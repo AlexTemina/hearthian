@@ -64,14 +64,14 @@ final class Store: ObservableObject {
     }
 
     /// Overlays Linear's state on every open line with an issue, before decoding: the Daily is the plan, Linear the state.
+    /// A waiting line is Linear's too, so it goes back to open when its issue leaves Pending for inputs.
     private static func withLinear(_ data: Data) -> Data {
         guard var root = try? JSONSerialization.jsonObject(with: data) else { return data }
         let states = LinearStates.shared
         func walk(_ node: Any) -> Any {
             if var dict = node as? [String: Any] {
-                if let issue = dict["issue"] as? String, dict["status"] as? String == "open",
-                   let status = MainActor.assumeIsolated({ states.status(of: issue) }) {
-                    dict["status"] = status
+                if let issue = dict["issue"] as? String, ["open", "waiting"].contains(dict["status"] as? String) {
+                    dict["status"] = MainActor.assumeIsolated({ states.status(of: issue) }) ?? "open"
                 }
                 for (k, v) in dict { dict[k] = walk(v) }
                 return dict
@@ -80,7 +80,7 @@ final class Store: ObservableObject {
             return node
         }
         root = walk(root)
-        if var dict = root as? [String: Any], let queue = (dict["queue"] as? [[String: Any]]) {
+        if var dict = root as? [String: Any], let queue = (dict["queue"] as? [[String: Any]])?.filter({ $0["status"] as? String != "waiting" }) {
             dict["progress"] = ["done": queue.filter { $0["status"] as? String != "open" }.count, "total": queue.count]
             root = dict
         }

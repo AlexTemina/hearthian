@@ -15,7 +15,7 @@ struct SlackSchedule: Codable, Equatable {
     var dayEnds: [Int: String] = [1: "17:00", 2: "17:00", 3: "17:00", 4: "17:00", 5: "16:00"]
     var openSlack = true
     var quitSlack = false
-    /// Between windows Slack stays open and macOS Focus silences it, through the Shortcuts below.
+    /// Between windows Slack stays open with its notifications paused until the next window.
     var focusBetweenWindows = true
     var setStatus = true
     var windowStatus = "Slack window, {minutes} min"
@@ -164,22 +164,26 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         }.resume()
     }
 
-    /// macOS Focus between windows: "Hearthian Focus" gets the minutes until the next window, "Hearthian Focus Off"
-    /// ends it. Both are Shortcuts he creates once; without them Slack is left as it is and the error says so.
+    /// Slack's own pause between windows, through orca-summon's Raycast commands (Raycast's Slack app, dnd:write):
+    /// paused until the next window, resumed when a window opens. No Slack app of ours, no token.
     private func focus(until: Date?) {
         guard schedule.focusBetweenWindows else { return }
-        let name = until == nil ? "Hearthian Focus Off" : "Hearthian Focus"
-        let minutes = until.map { max(1, Int(($0.timeIntervalSinceNow / 60).rounded(.up))) } ?? 0
-        DispatchQueue.global(qos: .utility).async {
-            let input = FileManager.default.temporaryDirectory.appendingPathComponent("hearthian-focus.txt")
-            try? "\(minutes)".write(to: input, atomically: true, encoding: .utf8)
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
-            process.arguments = ["run", name, "--input-path", input.path]
-            process.standardError = Pipe()
-            let ok = (try? process.run()) != nil && { process.waitUntilExit(); return process.terminationStatus == 0 }()
-            if !ok { Task { @MainActor in self.lastError = "Focus: no Shortcut \"\(name)\" in the Shortcuts app" } }
+        let base = "raycast://extensions/alejandro_ruiz_temina/orca-summon/"
+        var url: URLComponents?
+        if let until {
+            let minutes = max(1, Int((until.timeIntervalSinceNow / 60).rounded(.up)))
+            url = URLComponents(string: base + "slack-pause")
+            url?.queryItems = [URLQueryItem(name: "arguments", value: "{\"minutes\":\"\(minutes)\"}"),
+                               URLQueryItem(name: "launchType", value: "background")]
+        } else {
+            url = URLComponents(string: base + "slack-resume")
+            url?.queryItems = [URLQueryItem(name: "launchType", value: "background")]
         }
+        guard let link = url?.url, NSWorkspace.shared.urlForApplication(toOpen: link) != nil else {
+            lastError = "Slack pause: Raycast is not installed"
+            return
+        }
+        NSWorkspace.shared.open(link)
     }
 
     /// The Raycast Slack extension (mommertf/slack) sets the status with the user's own session: no Slack app to approve.

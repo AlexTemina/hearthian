@@ -81,15 +81,20 @@ final class Journey: ObservableObject {
         if let layers = day.layers {
             switch planet {
             case .timberHearth: return frog(day).map { [$0] } ?? []
-            case .brittleHollow: return layers.brittleHollow.filter { $0.md != frog(day)?.md }
+            case .brittleHollow: return layers.brittleHollow.filter { $0.md != frog(day)?.md && !$0.isWaiting }
             case .giantsDeep: return layers.giantsDeep
             }
         }
         switch planet {
         case .timberHearth: return day.focus.map { [$0] } ?? []
-        case .brittleHollow: return day.queue + day.decisions + day.parallel
+        case .brittleHollow: return (day.queue + day.decisions + day.parallel).filter { !$0.isWaiting }
         case .giantsDeep: return day.whileWaiting.map { [Item(text: $0, md: $0, status: "open", size: nil, tags: [], links: [], issue: nil, pr: nil, kind: "light")] } ?? []
         }
+    }
+
+    /// What left Brittle Hollow because it waits on someone else, in the Daily's order.
+    func waiting(_ day: Day) -> [Item] {
+        (day.layers?.brittleHollow ?? day.queue + day.decisions + day.parallel).filter(\.isWaiting)
     }
 
     func frog(_ day: Day) -> Item? {

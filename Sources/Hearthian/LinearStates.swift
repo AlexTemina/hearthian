@@ -52,9 +52,11 @@ final class LinearStates: ObservableObject {
         goal.done || (!goal.issues.isEmpty && goal.issues.allSatisfy { ["completed", "canceled"].contains(byIssue[$0]?.type ?? "") })
     }
 
-    /// Linear's verdict on a line that the Daily leaves open: done when the issue is completed, dropped when cancelled.
+    /// Linear's verdict on a line that the Daily leaves open: done when the issue is completed, dropped when cancelled,
+    /// waiting while it is in Pending for inputs.
     func status(of issue: String) -> String? {
-        switch byIssue[issue]?.type {
+        if byIssue[issue]?.name == "Pending for inputs" { return "waiting" }
+        return switch byIssue[issue]?.type {
         case "completed": "done"
         case "canceled": "dropped"
         default: nil

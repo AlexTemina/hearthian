@@ -19,6 +19,9 @@ struct Item: Codable, Hashable, Identifiable {
 
     var isOpen: Bool { status == "open" }
 
+    /// In Pending for inputs: out of the queue until someone else answers.
+    var isWaiting: Bool { status == "waiting" }
+
     var icon: String {
         switch status {
         case "done": "✅"
@@ -26,6 +29,7 @@ struct Item: Codable, Hashable, Identifiable {
         case "snoozed": "💤"
         case "skipped": "⏭️"
         case "dropped": "❌"
+        case "waiting": "⏳"
         default: "○"
         }
     }

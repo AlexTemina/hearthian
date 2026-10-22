@@ -12,7 +12,7 @@ enum Language: String, CaseIterable, Identifiable {
 
 /// Every string the app shows. The day's own content comes from today.json as written.
 enum L: String {
-    case appTitle, focus, queue, parallel, whileWaiting, decisions, notToday
+    case appTitle, focus, queue, parallel, whileWaiting, waiting, decisions, notToday
     case openDay, settings, quit, loading, noDay
     case messageAgent, newAgent, send, cancel, openLink, copyLine
     case agentFor, newAgentFor, typeMessage, jumpHelp, messageHelp, newAgentHelp
@@ -29,6 +29,7 @@ enum L: String {
         .queue: ("Brittle Hollow", "Brittle Hollow"),
         .parallel: ("Automatic agents", "Agentes automáticos"),
         .whileWaiting: ("Giant's Deep · while agents work", "Giant's Deep · mientras trabajan los agentes"),
+        .waiting: ("⏳ Waiting on someone", "⏳ Esperando a alguien"),
         .decisions: ("Decisions", "Decisiones"),
         .notToday: ("Not today", "Hoy no"),
         .openDay: ("Open day", "Abrir parte"),

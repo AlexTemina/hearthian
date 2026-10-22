@@ -31,7 +31,7 @@ An item finds its worktree by the Linear issue Orca has linked to it, or by a PR
 }
 ```
 
-`Item`: `{"text", "md", "status": "open|done|moved|snoozed|skipped|dropped", "size", "tags": [], "links": [{"title", "url"}], "issue", "pr"}`.
+`Item`: `{"text", "md", "status": "open|done|moved|snoozed|skipped|dropped|waiting", "size", "tags": [], "links": [{"title", "url"}], "issue", "pr"}`.
 
 ## Config
 

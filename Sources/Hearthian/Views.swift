@@ -272,7 +272,10 @@ struct DayView: View {
                 if let focus = day.focus { focusCard(focus) }
                 if !day.slots.isEmpty { slots(day) }
                 Card(title: L.queue.text, icon: "circle.bottomhalf.filled", trailing: "\(day.progress.done)/\(day.progress.total)") {
-                    ForEach(day.queue) { ItemRow(item: $0, isNext: $0 == day.next) }
+                    ForEach(day.queue.filter { !$0.isWaiting }) { ItemRow(item: $0, isNext: $0 == day.next) }
+                }
+                if !compact, day.queue.contains(where: \.isWaiting) {
+                    Card(title: L.waiting.text, icon: "hourglass") { ForEach(day.queue.filter(\.isWaiting)) { ItemRow(item: $0) } }
                 }
                 if !day.parallel.isEmpty {
                     Card(title: L.parallel.text) { ForEach(day.parallel) { ItemRow(item: $0) } }

@@ -69,6 +69,11 @@ struct PlanetView: View {
                 rail(list, active: journey.activeItem(planet, day))
             }
         }
+        if planet == .brittleHollow, !compact, !journey.waiting(day).isEmpty {
+            Card(title: L.waiting.text, icon: "hourglass") {
+                ForEach(journey.waiting(day)) { ItemRow(item: $0) }
+            }
+        }
     }
 
     private func frog(_ day: Day) -> some View {
