@@ -341,8 +341,10 @@ struct AgentsView: View {
         return all.filter { $0.parentWorktreeId.map { !ids.contains($0) } ?? true }.sorted(by: order)
     }
 
+    /// What hangs from "🚫 Don't remove" is special and stays out of the list.
     private func children(of w: Orca.Worktree) -> [Orca.Worktree] {
-        monitor.worktrees.filter { $0.parentWorktreeId == w.id }.sorted(by: order)
+        guard !w.displayName.localizedCaseInsensitiveContains("don't remove") else { return [] }
+        return monitor.worktrees.filter { $0.parentWorktreeId == w.id }.sorted(by: order)
     }
 
     private func order(_ a: Orca.Worktree, _ b: Orca.Worktree) -> Bool {
