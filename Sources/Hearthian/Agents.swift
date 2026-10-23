@@ -42,6 +42,7 @@ final class AgentMonitor: ObservableObject {
     @Published private(set) var worktrees: [Orca.Worktree] = []
     @Published private(set) var sessions: [Session] = []
     @Published private(set) var terminals: [Orca.Terminal] = []
+    @Published private(set) var repos: [Orca.Repo] = []
     @Published private(set) var lastPoll: Date?
     @Published private(set) var error: String?
 
@@ -61,6 +62,9 @@ final class AgentMonitor: ObservableObject {
         if let link = Links.get(item), let session = sessions.first(where: { $0.id == link.session }) {
             return Self.fromHooks([session], unread: false, terminals: [])
         }
+        if let issue = item.issue, let t = Orca.namedAgent(issue, in: terminals) {
+            return terminalStatus(t)
+        }
         return Orca.candidates(for: item, in: worktrees)
             .compactMap { byWorktree[$0.id] }
             .filter { $0.state != .none }
@@ -73,6 +77,7 @@ final class AgentMonitor: ObservableObject {
         DispatchQueue.global(qos: .utility).async {
             let result = Result { (try Orca.worktrees(), try Orca.terminals()) }
             let sessions = Session.readAll()
+            let repos = (try? Orca.repos()) ?? []
             Task { @MainActor in
                 self.polling = false
                 switch result {
@@ -80,6 +85,7 @@ final class AgentMonitor: ObservableObject {
                     self.worktrees = worktrees
                     self.sessions = sessions
                     self.terminals = terminals.filter(\.connected)
+                    if !repos.isEmpty { self.repos = repos }
                     Links.adopt(sessions)
                     self.byWorktree = Self.derive(worktrees, terminals, sessions: sessions, now: .now)
                     self.error = nil
@@ -165,6 +171,20 @@ final class AgentMonitor: ObservableObject {
         let last = sessions.map(\.at).max().map { Date(timeIntervalSince1970: $0) }
         return AgentStatus(state: state, agents: sessions.count, working: working.count, lastOutput: last,
                            title: title.map(stripGlyph))
+    }
+
+    /// One agent tab's state: its hook session when it has reported, else its title and output.
+    func terminalStatus(_ t: Orca.Terminal) -> AgentStatus {
+        let last = t.lastOutputAt.map { Date(timeIntervalSince1970: $0 / 1000) }
+        if let s = sessions.first(where: { $0.paneKey != nil && $0.paneKey == t.paneKey }) {
+            var status = Self.fromHooks([s], unread: false, terminals: [t])
+            status.lastOutput = last ?? status.lastOutput
+            return status
+        }
+        let live = last.map { Date.now.timeIntervalSince($0) < Self.stuckAfter } ?? false
+        let state: AgentState = Self.isWaiting(t) ? .idle : live ? .thinking : .stuck
+        return AgentStatus(state: state, agents: 1, working: state == .thinking ? 1 : 0, lastOutput: last,
+                           title: t.title.map(Self.stripGlyph))
     }
 
     nonisolated static func isAgent(_ t: Orca.Terminal) -> Bool {
@@ -279,33 +299,30 @@ struct AgentPill: View {
     }
 }
 
-/// Every worktree with an agent and what it is doing: the page to check the monitor against reality.
+/// Every agent open in Orca, project by project (the vault and alan-apps), worktrees nested under their parent,
+/// each with its agent tabs and what they are doing. The agent named after the worktree's issue is the main one.
 struct AgentsView: View {
     @EnvironmentObject private var settings: AppSettings
     @ObservedObject var monitor: AgentMonitor
 
+    static let projects = ["vault", "alan-apps"]
+    /// Worktrees that live without an issue on purpose.
+    static let special: Set<String> = ["main", "daily", "auditor"]
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Text(L.agents.text).font(.system(size: 24, weight: .bold, design: .rounded))
                     Spacer()
                     if let at = monitor.lastPoll { Text("\(L.updatedAt.text) \(Self.time(at))").font(.caption).foregroundStyle(.secondary) }
                 }
                 if let error = monitor.error { Text(error).font(.caption).foregroundStyle(.red) }
-                Card(title: nil) {
-                    ForEach(rows, id: \.0.id) { worktree, status in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(worktree.displayName).font(.system(size: 13, weight: .bold))
-                                Text(status.title ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            }
-                            Spacer()
-                            if let issue = worktree.linkedLinearIssue { Chip(text: issue) }
-                            Text(status.lastOutput.map(Self.ago) ?? "").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                            AgentPill(status: status)
+                ForEach(Self.projects, id: \.self) { name in
+                    if let repo = monitor.repos.first(where: { $0.displayName == name }) {
+                        Card(title: name, icon: "folder") {
+                            ForEach(roots(of: repo.id), id: \.id) { tree($0, depth: 0) }
                         }
-                        .padding(.vertical, 6).padding(.horizontal, 10)
                     }
                 }
             }
@@ -314,9 +331,67 @@ struct AgentsView: View {
         }
     }
 
-    private var rows: [(Orca.Worktree, AgentStatus)] {
-        monitor.worktrees.compactMap { w in monitor.byWorktree[w.id].flatMap { $0.state == .none ? nil : (w, $0) } }
-            .sorted { ($0.1.state.rank, $0.1.lastOutput ?? .distantPast) > ($1.1.state.rank, $1.1.lastOutput ?? .distantPast) }
+    private func worktrees(of repo: String) -> [Orca.Worktree] {
+        monitor.worktrees.filter { $0.repoId == repo || $0.id.hasPrefix(repo + "::") }
+    }
+
+    private func roots(of repo: String) -> [Orca.Worktree] {
+        let all = worktrees(of: repo)
+        let ids = Set(all.map(\.id))
+        return all.filter { $0.parentWorktreeId.map { !ids.contains($0) } ?? true }.sorted(by: order)
+    }
+
+    private func children(of w: Orca.Worktree) -> [Orca.Worktree] {
+        monitor.worktrees.filter { $0.parentWorktreeId == w.id }.sorted(by: order)
+    }
+
+    private func order(_ a: Orca.Worktree, _ b: Orca.Worktree) -> Bool {
+        if a.isMainWorktree != b.isMainWorktree { return a.isMainWorktree }
+        return a.displayName.localizedStandardCompare(b.displayName) == .orderedAscending
+    }
+
+    private func agents(in w: Orca.Worktree) -> [Orca.Terminal] {
+        let issue = Orca.issuePrefix(w.displayName) ?? w.linkedLinearIssue?.uppercased()
+        return monitor.terminals.filter { $0.worktreeId == w.id && AgentMonitor.isAgent($0) }
+            .sorted { a, b in
+                let am = issue != nil && Orca.issuePrefix(a.title ?? "") == issue
+                let bm = issue != nil && Orca.issuePrefix(b.title ?? "") == issue
+                return am != bm ? am : (a.lastOutputAt ?? 0) > (b.lastOutputAt ?? 0)
+            }
+    }
+
+    private func tree(_ w: Orca.Worktree, depth: Int) -> AnyView {
+        let issue = Orca.issuePrefix(w.displayName) ?? w.linkedLinearIssue?.uppercased()
+        let missing = Orca.issuePrefix(w.displayName) == nil && !w.isMainWorktree && !Self.special.contains(w.displayName)
+        return AnyView(VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: depth == 0 ? "square.stack.3d.up" : "arrow.turn.down.right").font(.caption).foregroundStyle(.secondary)
+                Text(w.displayName).font(.system(size: 13, weight: .bold))
+                if missing { Chip(text: L.noIssue.text).foregroundStyle(.orange) }
+                Spacer()
+                if let status = monitor.byWorktree[w.id], status.state != .none { AgentPill(status: status) }
+            }
+            ForEach(agents(in: w), id: \.handle) { t in
+                let status = monitor.terminalStatus(t)
+                let main = issue != nil && Orca.issuePrefix(t.title ?? "") == issue
+                Button { try? Orca.focus(t) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: main ? "star.fill" : "circle.fill").font(.system(size: main ? 9 : 5))
+                            .foregroundStyle(main ? .yellow : .secondary).frame(width: 12)
+                        Text(AgentMonitor.stripGlyph(t.title ?? "")).font(.callout).lineLimit(1)
+                        Spacer()
+                        Text(status.lastOutput.map(Self.ago) ?? "").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        AgentPill(status: status)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 22)
+            }
+            ForEach(children(of: w), id: \.id) { tree($0, depth: depth + 1) }
+                .padding(.leading, 16)
+        }
+        .padding(.vertical, 4).padding(.horizontal, 10))
     }
 
     static func time(_ d: Date) -> String { SlackWindows.hm(d) }

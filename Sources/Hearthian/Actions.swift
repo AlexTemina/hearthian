@@ -70,6 +70,12 @@ enum Actions {
                 }
             }
 
+            if let issue = item.issue, let t = Orca.namedAgent(issue, in: terminals) {
+                if let s = sessions.first(where: { $0.paneKey == t.paneKey && $0.alive }) {
+                    Links.set(item, session: s.id, worktree: t.worktreeId)
+                }
+                return try Orca.focus(t)
+            }
             guard let (worktree, _) = try Orca.agent(for: item) else {
                 // /start-task opens the issue's worktree with an agent of its own, linked to the issue: step 2 finds
                 // that one next time. Without an issue, the agent started here is the one, and HEARTHIAN_ITEM links it.
@@ -85,7 +91,8 @@ enum Actions {
             if let t = terminals.first(where: { $0.worktreeId == worktree.id && AgentMonitor.isAgent($0) }) {
                 return try Orca.focus(t)
             }
-            try Orca.newAgent(prompt: config.fill(config.resumePrompt, item), in: worktree, item: key)
+            try Orca.newAgent(prompt: config.fill(config.resumePrompt, item), in: worktree, item: key,
+                              title: item.issue.map { "\($0) — \(item.heading.replacingOccurrences(of: "\($0) — ", with: ""))" })
         }
     }
 

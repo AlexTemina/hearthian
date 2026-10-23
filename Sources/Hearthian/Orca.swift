@@ -16,6 +16,32 @@ enum Orca {
         let isUnread: Bool?
         let workspaceStatus: String?
         let comment: String?
+        let repoId: String?
+        let parentWorktreeId: String?
+    }
+
+    struct Repo: Decodable { let id: String; let displayName: String }
+    private struct Repos: Decodable { let repos: [Repo] }
+
+    static func repos() throws -> [Repo] {
+        try JSONDecoder().decode(Envelope<Repos>.self, from: run(["repo", "list", "--json"])).result.repos
+    }
+
+    /// The Linear issue a name starts with, the way worktrees (`ES-12279-mo-spike`) and agent tabs (`ES-12279 — Mo`) are named.
+    static func issuePrefix(_ name: String) -> String? {
+        let clean = AgentMonitor.stripGlyph(name)
+        guard let m = clean.range(of: #"^[A-Za-z]+[0-9]*-\d+"#, options: .regularExpression) else { return nil }
+        return clean[m].uppercased()
+    }
+
+    /// The agent named after the issue: the tab whose title starts with its id. The one that matters for the task.
+    static func namedAgent(_ issue: String, in terminals: [Terminal]) -> Terminal? {
+        terminals.filter { $0.connected && AgentMonitor.isAgent($0) && issuePrefix($0.title ?? "") == issue.uppercased() }
+            .max { ($0.lastOutputAt ?? 0) < ($1.lastOutputAt ?? 0) }
+    }
+
+    static func rename(_ terminal: String, to title: String) {
+        _ = try? run(["terminal", "rename", "--terminal", terminal, "--title", title, "--json"])
     }
 
     struct Terminal: Decodable {
@@ -123,14 +149,15 @@ enum Orca {
     }
 
     /// A new Claude in the worktree. HEARTHIAN_ITEM rides along so the hook reports which item the session is for.
-    static func newAgent(prompt: String, in worktree: Worktree, item: String? = nil) throws {
+    static func newAgent(prompt: String, in worktree: Worktree, item: String? = nil, title: String? = nil) throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hearthian-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("prompt.txt")
         try prompt.write(to: file, atomically: true, encoding: .utf8)
         let mode = Config.load().permissionMode
         let env = item.map { "HEARTHIAN_ITEM='\($0)' " } ?? ""
-        try launch("\(env)claude --permission-mode \(mode) \"$(cat '\(file.path)')\"; rm -rf '\(dir.path)'", in: worktree)
+        let handle = try launch("\(env)claude --permission-mode \(mode) \"$(cat '\(file.path)')\"; rm -rf '\(dir.path)'", in: worktree)
+        if let handle, let title { rename(handle, to: title) }
     }
 
     /// Brings back a closed Claude conversation in its worktree.
@@ -139,9 +166,12 @@ enum Orca {
         try launch("HEARTHIAN_ITEM='\(item)' claude --permission-mode \(mode) --resume \(session)", in: worktree)
     }
 
-    private static func launch(_ command: String, in worktree: Worktree) throws {
+    @discardableResult
+    private static func launch(_ command: String, in worktree: Worktree) throws -> String? {
+        struct Created: Decodable { struct Result: Decodable { struct T: Decodable { let handle: String }; let terminal: T }; let result: Result }
         NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Orca.app"))
-        try run(["terminal", "create", "--worktree", "id:\(worktree.id)", "--command", command, "--focus", "--json"])
+        let data = try run(["terminal", "create", "--worktree", "id:\(worktree.id)", "--command", command, "--focus", "--json"])
+        return (try? JSONDecoder().decode(Created.self, from: data))?.result.terminal.handle
     }
 
     /// The agent tab of a worktree that spoke last.
