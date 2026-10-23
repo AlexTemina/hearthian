@@ -306,7 +306,7 @@ struct AgentsView: View {
     @ObservedObject var monitor: AgentMonitor
 
     static let projects = ["vault", "alan-apps"]
-    /// Worktrees that live without an issue on purpose.
+    /// Worktrees that live without an issue on purpose (also any whose name starts with 🚫, the automation ones).
     static let special: Set<String> = ["main", "daily", "auditor"]
 
     var body: some View {
@@ -363,6 +363,7 @@ struct AgentsView: View {
     private func tree(_ w: Orca.Worktree, depth: Int) -> AnyView {
         let issue = Orca.issuePrefix(w.displayName) ?? w.linkedLinearIssue?.uppercased()
         let missing = Orca.issuePrefix(w.displayName) == nil && !w.isMainWorktree && !Self.special.contains(w.displayName)
+            && !w.displayName.hasPrefix("🚫")
         return AnyView(VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Image(systemName: depth == 0 ? "square.stack.3d.up" : "arrow.turn.down.right").font(.caption).foregroundStyle(.secondary)
