@@ -34,9 +34,15 @@ enum Orca {
         return clean[m].uppercased()
     }
 
-    /// The agent named after the issue: the tab whose title starts with its id. The one that matters for the task.
+    /// Whether a tab title names the issue anywhere: Claude retitles its tab from the session, so the id is not always first.
+    static func mentions(_ title: String, _ issue: String) -> Bool {
+        let pattern = "(^|[^A-Za-z0-9])" + NSRegularExpression.escapedPattern(for: issue) + "([^0-9]|$)"
+        return title.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// The agent named after the issue: the tab whose title carries its id. The one that matters for the task.
     static func namedAgent(_ issue: String, in terminals: [Terminal]) -> Terminal? {
-        terminals.filter { $0.connected && AgentMonitor.isAgent($0) && issuePrefix($0.title ?? "") == issue.uppercased() }
+        terminals.filter { $0.connected && AgentMonitor.isAgent($0) && mentions($0.title ?? "", issue) }
             .max { ($0.lastOutputAt ?? 0) < ($1.lastOutputAt ?? 0) }
     }
 

@@ -356,8 +356,8 @@ struct AgentsView: View {
         let issue = Orca.issuePrefix(w.displayName) ?? w.linkedLinearIssue?.uppercased()
         return monitor.terminals.filter { $0.worktreeId == w.id && AgentMonitor.isAgent($0) }
             .sorted { a, b in
-                let am = issue != nil && Orca.issuePrefix(a.title ?? "") == issue
-                let bm = issue != nil && Orca.issuePrefix(b.title ?? "") == issue
+                let am = issue.map { Orca.mentions(a.title ?? "", $0) } ?? false
+                let bm = issue.map { Orca.mentions(b.title ?? "", $0) } ?? false
                 return am != bm ? am : (a.lastOutputAt ?? 0) > (b.lastOutputAt ?? 0)
             }
     }
@@ -376,7 +376,7 @@ struct AgentsView: View {
             }
             ForEach(agents(in: w), id: \.handle) { t in
                 let status = monitor.terminalStatus(t)
-                let main = issue != nil && Orca.issuePrefix(t.title ?? "") == issue
+                let main = issue.map { Orca.mentions(t.title ?? "", $0) } ?? false
                 Button { try? Orca.focus(t) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: main ? "star.fill" : "circle.fill").font(.system(size: main ? 9 : 5))
