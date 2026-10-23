@@ -18,12 +18,13 @@ struct SlackSchedule: Codable, Equatable {
     /// Between windows Slack stays open with its notifications paused until the next window.
     var focusBetweenWindows = true
     var setStatus = true
-    var windowStatus = "Slack window, {minutes} min"
+    var windowStatus = "Checking Slack"
     var windowEmoji = ":window:"
-    var focusStatus = "Deep work, back at {next}. Huddle or call me if it cannot wait"
-    var focusEmoji = ":fire:"
+    /// Focus, not crunch: he is reachable, he just reads Slack in batches. Pinging him is fine.
+    var focusStatus = "Focusing, will check Slack at {next}. Ping me if you need me"
+    var focusEmoji = ":headphones:"
     /// After the last window: still deep work, with no time to come back. He decides when the day ends; never "off".
-    var lastFocusStatus = "Deep work. Huddle or call me if it cannot wait"
+    var lastFocusStatus = "Focusing, will check Slack later. Ping me if you need me"
 
     static let key = "slackSchedule"
 
