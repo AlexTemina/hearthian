@@ -53,6 +53,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
 
     private var timer: Timer?
     private var fired: Set<String> = []
+    private var syncedDay = Calendar.current.startOfDay(for: .now)
     private var endTask: Task<Void, Never>?
 
     func start() {
@@ -80,8 +81,13 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
 
     private func tick() {
         guard schedule.enabled else { return }
+        let today = Calendar.current.startOfDay(for: .now)
+        if today != syncedDay {
+            syncedDay = today
+            syncStatus()
+        }
         let now = Self.hm(.now)
-        let day = Calendar.current.startOfDay(for: .now).timeIntervalSince1970
+        let day = today.timeIntervalSince1970
         for t in schedule.times[SlackSchedule.weekday()] ?? [] where t == now {
             let id = "\(day)-\(t)"
             if fired.insert(id).inserted { openWindow() }
@@ -206,8 +212,7 @@ final class SlackWindows: NSObject, ObservableObject, UNUserNotificationCenterDe
         guard schedule.enabled else { return }
         let weekday = SlackSchedule.weekday()
         let times = (schedule.times[weekday] ?? []).sorted()
-        let now = Self.hm(.now)
-        guard let first = times.first, now >= first else { return }
+        guard !times.isEmpty else { return }
         let inWindow = times.contains { t in
             guard let start = Self.date(t) else { return false }
             return Date.now >= start && Date.now < start.addingTimeInterval(TimeInterval(schedule.minutes * 60))
