@@ -81,7 +81,10 @@ final class Store: ObservableObject {
         }
         root = walk(root)
         if var dict = root as? [String: Any], let queue = (dict["queue"] as? [[String: Any]])?.filter({ $0["status"] as? String != "waiting" }) {
-            dict["progress"] = ["done": queue.filter { $0["status"] as? String != "open" }.count, "total": queue.count]
+            var progress: [String: Any] = ["done": queue.filter { $0["status"] as? String != "open" }.count, "total": queue.count]
+            let frog = ((dict["layers"] as? [String: Any])?["timber_hearth"] as? [[String: Any]])?.first ?? dict["focus"] as? [String: Any]
+            if let status = frog?["status"] as? String { progress["frog_done"] = status != "open" && status != "waiting" }
+            dict["progress"] = progress
             root = dict
         }
         return (try? JSONSerialization.data(withJSONObject: root)) ?? data

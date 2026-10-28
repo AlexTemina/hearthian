@@ -79,7 +79,7 @@ struct MainWindow: View {
         .safeAreaInset(edge: .bottom) {
             if let day = store.day {
                 HStack(spacing: 10) {
-                    ProgressRing(done: day.progress.done, total: day.progress.total)
+                    ProgressRing(fraction: day.progress.fraction)
                         .scaleEffect(0.8).frame(width: 38, height: 38)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(day.next?.text ?? "✓").font(.caption.weight(.semibold)).lineLimit(2)

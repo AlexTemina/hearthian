@@ -309,7 +309,7 @@ struct DayView: View {
                 }
             }
             Spacer()
-            ProgressRing(done: day.progress.done, total: day.progress.total)
+            ProgressRing(fraction: day.progress.fraction)
         }
     }
 
@@ -350,11 +350,9 @@ struct DayView: View {
 }
 
 struct ProgressRing: View {
-    let done: Int
-    let total: Int
+    let fraction: Double
 
     var body: some View {
-        let fraction = total == 0 ? 0 : Double(done) / Double(total)
         ZStack {
             Circle().stroke(Color.secondary.opacity(0.15), lineWidth: 5)
             Circle().trim(from: 0, to: fraction)

@@ -113,6 +113,17 @@ struct DaySection: Codable, Identifiable {
 struct Progress: Codable {
     let done: Int
     let total: Int
+    let frogDone: Bool?
+
+    /// The frog makes the day, so it weighs a third of the ring and the rest of the queue shares the other two thirds.
+    static let frogWeight = 0.33
+
+    var fraction: Double {
+        let queue = total == 0 ? 0 : Double(done) / Double(total)
+        guard let frogDone else { return queue }
+        let frog = frogDone ? 1.0 : 0
+        return total == 0 ? frog : Self.frogWeight * frog + (1 - Self.frogWeight) * queue
+    }
 }
 
 struct Day: Codable {
