@@ -267,18 +267,45 @@ struct ContractCard: View {
                 }
                 .padding(.horizontal, 10).padding(.vertical, 3)
             }
-            HStack(spacing: 6) {
+            VStack(spacing: 4) {
                 ForEach(contract.days) { row in
-                    VStack(spacing: 2) {
-                        Text(row.day).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                        Text(row.outcome ?? "·").font(.caption)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(mark(row) ?? "·").font(.caption).frame(width: 16)
+                        Text(row.day).font(.caption.weight(.semibold))
+                            .foregroundStyle(isToday(row) ? .primary : .secondary)
+                            .frame(width: 48, alignment: .leading)
+                        if let note = note(row) {
+                            Text(note).font(.caption).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity).padding(.vertical, 4)
-                    .tonalChip(row.outcome == "✅" ? .green : row.outcome == "❌" ? .red : nil)
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .tonalChip(tint(row))
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(isToday(row) ? Planet.timberHearth.tone : .clear, lineWidth: 1))
                     .help([row.una, row.parallels].compactMap { $0 }.joined(separator: "\n"))
                 }
             }
             .padding(.horizontal, 10).padding(.top, 4)
         }
+    }
+
+    /// The outcome opens with its verdict emoji, the rest is the note, in markdown.
+    private func mark(_ row: Contract.DayRow) -> String? {
+        row.outcome?.trimmingCharacters(in: .whitespaces).first.map(String.init)
+    }
+
+    private func note(_ row: Contract.DayRow) -> AttributedString? {
+        guard let outcome = row.outcome?.trimmingCharacters(in: .whitespaces), outcome.count > 1 else { return nil }
+        let rest = String(outcome.dropFirst()).trimmingCharacters(in: .whitespaces)
+        return (try? AttributedString(markdown: rest)) ?? AttributedString(rest)
+    }
+
+    private func tint(_ row: Contract.DayRow) -> Color? {
+        switch mark(row) { case "✅": .green; case "❌": .red; default: nil }
+    }
+
+    private func isToday(_ row: Contract.DayRow) -> Bool {
+        row.day.hasSuffix(" \(Calendar.current.component(.day, from: .now))")
     }
 }
